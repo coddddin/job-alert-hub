@@ -1,0 +1,27 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+secrets/
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Local data and logs
+data/
+*.log
+*.sqlite*
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
