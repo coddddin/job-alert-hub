@@ -16,7 +16,8 @@ playwright-report/
 test-results/
 
 # Local data and logs
-data/
+data/*
+!data/jobs.js
 *.log
 *.sqlite*
 
