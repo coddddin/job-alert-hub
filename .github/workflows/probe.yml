@@ -1,0 +1,23 @@
+name: Probe (temporary)
+on:
+  push:
+    branches: [feat/live-data]
+    paths: [apps/collector/probe/probe.mjs, .github/workflows/probe.yml]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node apps/collector/probe/probe.mjs
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/collector/probe/result.json
+          git commit -m "chore(probe): record API response sample"
+          git push
