@@ -8,7 +8,11 @@ importers:
 
   .: {}
 
-  apps/web: {}
+  apps/web:
+    dependencies:
+      kr-job-parser:
+        specifier: workspace:*
+        version: link:../../packages/kr-job-parser
 
   packages/kr-job-parser:
     devDependencies:

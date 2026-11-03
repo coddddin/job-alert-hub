@@ -32,11 +32,11 @@ jobs:
         run: pnpm lint
       - name: Typecheck
         run: pnpm typecheck
+      - name: Build
+        run: pnpm build
       - name: Test (web + kr-job-parser)
         run: pnpm test
       - name: Coverage (kr-job-parser)
         run: pnpm --filter kr-job-parser test:coverage
-      - name: Build
-        run: pnpm build
       - name: Package exports (publint, attw)
         run: pnpm -r run check:package

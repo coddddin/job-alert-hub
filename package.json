@@ -9,6 +9,6 @@
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm -r run check:package"
+    "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm -r run check:package"
   }
 }

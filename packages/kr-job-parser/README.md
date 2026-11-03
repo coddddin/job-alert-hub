@@ -32,6 +32,12 @@ parseDeadline('~11/14(금)', { today: '2026-11-03' });
 
 문자열 비교로는 이 차이를 감당할 수 없어서, 표기를 해석하는 부분을 서비스에서 분리해 독립된 라이브러리로 만들었습니다.
 
+### 실제로 쓰이는 모습
+
+Job Alert Hub 웹은 공고의 원문 표기를 이 라이브러리로 해석해 목록과 알림 조건을 판단합니다. 해석하지 못한 항목이 있는 공고는 버리지 않고 "확인 필요" 목록으로 보냅니다.
+
+<img src="https://raw.githubusercontent.com/coddddin/job-alert-hub/main/docs/images/parser-in-app.png" alt="공고 상세에서 원문 표기와 kr-job-parser 해석 결과를 함께 보여주는 화면" width="520">
+
 ## 설치
 
 ```sh

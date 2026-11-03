@@ -47,7 +47,7 @@
 | 맞춤 필터 | 개발 분야·근무지·경력무관 포함 여부·키워드 구현 |
 | 독립된 알림 조건 | 조건·채널 선호·빈도 저장과 미리보기 구현, 실제 발송 없음 |
 | 스크랩·지원 관리 | 브라우저 저장소에 스크랩과 지원 상태 저장 |
-| 지원 요건 표시 | 정규화된 샘플 요건 기반 판정. 경력·근무지·마감 표기 해석은 [kr-job-parser](packages/kr-job-parser)로 분리해 구현, 웹 연결은 예정, 관심도 점수는 예정 |
+| 지원 요건 표시 | 샘플 공고의 원문 표기(경력·근무지·마감)를 [kr-job-parser](packages/kr-job-parser)로 해석해 판정. 공고 상세에서 원문과 해석 결과를 함께 표시. 관심도 점수는 예정 |
 | 실데이터·이메일·메신저 | 연동 예정 |
 | 유사 공고·관심 없음 | 구현 예정 |
 | 마감·변경 알림 | 구현 예정 |
@@ -71,24 +71,23 @@
 
 ## 시작하기
 
-**준비물: Node.js 22 이상과 Git.** 웹 프로토타입은 추가 패키지 설치나 API 키 없이 실행됩니다.
+**준비물: Node.js 22 이상, Git, [pnpm](https://pnpm.io).** API 키는 필요하지 않습니다.
 
 ```sh
 git clone https://github.com/coddddin/job-alert-hub.git
-cd job-alert-hub/apps/web
-node server.mjs
+cd job-alert-hub
+pnpm install
+pnpm build                                  # 웹이 쓰는 kr-job-parser를 빌드
+pnpm --filter @job-alert-hub/web start
 ```
 
 브라우저에서 **http://127.0.0.1:3000** 을 엽니다. 종료는 터미널에서 `Ctrl+C`를 누릅니다. 3000번 포트가 사용 중이면 Windows PowerShell에서 `$env:PORT=3001`을 설정한 뒤 다시 실행하세요.
 
-전체 테스트·린트·빌드는 저장소 루트에서 [pnpm](https://pnpm.io)으로 실행합니다.
+전체 검증은 저장소 루트에서 한 번에 실행합니다.
 
 ```sh
-pnpm install
-pnpm check   # lint → typecheck → test → build → 패키지 설정 검사
+pnpm check   # lint → typecheck → build → test → 패키지 설정 검사
 ```
-
-웹 프로토타입 테스트만 돌리려면 `apps/web`에서 `node --test`를 실행합니다.
 
 - 설정과 스크랩은 이 브라우저의 로컬 저장소에만 보관되며 기기 간 동기화하지 않습니다.
 - 가상 공고에는 원문 지원 링크가 없습니다. 날짜도 고정된 샘플 값입니다.
@@ -111,8 +110,16 @@ job-alert-hub/
 
 | 패키지 | 설명 |
 | --- | --- |
-| [`apps/web`](apps/web) | 가상 공고로 동작하는 로컬 프로토타입입니다. |
+| [`apps/web`](apps/web) | 가상 공고로 동작하는 로컬 프로토타입입니다. 공고의 원문 표기를 `kr-job-parser`로 해석해 목록·알림 조건에 씁니다. |
 | [`packages/kr-job-parser`](packages/kr-job-parser) | `경력 3년↑`, `서울 외 2곳`, `~11/14(금)` 같은 제각각인 경력·근무지·마감 표기를 타입이 있는 데이터로 바꿉니다. 실연동 시 "공통 형식 변환" 단계를 맡습니다. |
+
+웹은 브라우저에서 파서를 직접 불러옵니다. 서버가 빌드된 파일을 `/vendor/kr-job-parser/`로 제공하고, 페이지의 import map이 `kr-job-parser`를 그 경로로 연결합니다. 인라인 import map은 CSP에 해시로만 허용해 `unsafe-inline` 없이 동작합니다.
+
+공고 상세 화면에서는 원문 표기와 해석 결과를 함께 보여줍니다. 해석하지 못한 항목은 따로 표시되고, 그 공고는 "확인 필요" 목록으로 갑니다.
+
+| 해석 성공 | 해석 불가 → 확인 필요 |
+| --- | --- |
+| ![복수 근무지와 채용 시 마감을 해석한 공고 상세](docs/images/parser-in-app.png) | ![근무지 협의를 해석하지 못해 확인 필요로 분류된 공고 상세](docs/images/parser-unknown.png) |
 
 ## 개발 구조
 
@@ -147,7 +154,7 @@ flowchart LR
 - [x] 샘플 공고로 필터 정확도 검증
 - [x] 샘플 목록·알림 설정·스크랩·지원 상태 구현
 - [x] 공고 표기 해석 라이브러리 분리 (`kr-job-parser`: 경력·근무지·마감)
-- [ ] 웹에 파서 연결
+- [x] 웹에 파서 연결 (샘플 공고를 원문 표기로 바꾸고 파서로 해석)
 - [ ] 실제 계정과 데이터베이스 연결
 - [ ] 실제 수집과 이메일·메신저 알림 연결
 - [ ] 운영 환경 배포와 오류 복구 검증
