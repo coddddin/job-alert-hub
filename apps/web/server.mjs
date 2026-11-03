@@ -1,17 +1,34 @@
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+// 워크스페이스 패키지의 빌드 결과물 위치. `pnpm build`로 먼저 만들어 둬야 한다.
+const parserDist = path.dirname(fileURLToPath(import.meta.resolve('kr-job-parser')));
+const js = 'text/javascript; charset=utf-8';
+
 const routes = new Map([
   ['/', ['public/index.html', 'text/html; charset=utf-8']],
-  ['/app.js', ['public/app.js', 'text/javascript; charset=utf-8']],
+  ['/app.js', ['public/app.js', js]],
   ['/styles.css', ['public/styles.css', 'text/css; charset=utf-8']],
-  ['/lib/matching.js', ['lib/matching.js', 'text/javascript; charset=utf-8']],
-  ['/lib/state.js', ['lib/state.js', 'text/javascript; charset=utf-8']],
-  ['/data/jobs.js', ['data/jobs.js', 'text/javascript; charset=utf-8']],
+  ['/lib/matching.js', ['lib/matching.js', js]],
+  ['/lib/normalize-job.js', ['lib/normalize-job.js', js]],
+  ['/lib/state.js', ['lib/state.js', js]],
+  ['/data/jobs.js', ['data/jobs.js', js]],
 ]);
+for (const file of ['index', 'experience', 'location', 'deadline', 'normalize', 'fit']) {
+  routes.set(`/vendor/kr-job-parser/${file}.js`, [path.join(parserDist, `${file}.js`), js]);
+}
+
+// index.html의 import map은 인라인 스크립트라 CSP에 해시로 허용한다 ('unsafe-inline'을 쓰지 않기 위해).
+const html = readFileSync(path.join(root, 'public/index.html'), 'utf8');
+const importMap = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
+const importMapHash = createHash('sha256').update(importMap).digest('base64');
+const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
+
 export function createServer() {
   return http.createServer(async (req, res) => {
     if (!['GET', 'HEAD'].includes(req.method)) {
@@ -20,11 +37,11 @@ export function createServer() {
     const route = routes.get(new URL(req.url, 'http://localhost').pathname);
     if (!route) { res.writeHead(404).end('Not found'); return; }
     try {
-      const body = await readFile(path.join(root, route[0]));
+      const body = await readFile(path.isAbsolute(route[0]) ? route[0] : path.join(root, route[0]));
       res.writeHead(200, {
         'Content-Type': route[1], 'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+        'Content-Security-Policy': csp,
       });
       res.end(req.method === 'HEAD' ? undefined : body);
     } catch { res.writeHead(500).end('Unable to load page'); }

@@ -35,9 +35,30 @@ function readForm(form) {
   return { role: data.get('role'), region: data.get('region'), keyword: data.get('keyword').trim(), includeUnspecified: data.has('includeUnspecified') };
 }
 function experience(job) { return ({ new: '신입', unspecified: '경력무관', experienced: '경력 필수', unknown: '경력 미상' })[job.experience]; }
+function deadlineLabel(job) {
+  if (job.deadline) return '~ ' + job.deadline.slice(5).replace('-', '.');
+  return ({ rolling: '상시 채용', 'until-filled': '채용 시 마감' })[job.deadlineKind] || '마감일 미상';
+}
+function describeExperience({ kind, range }) {
+  const years = range && range.min ? ` (${range.min.years}년 ${range.min.inclusive ? '이상' : '초과'})` : '';
+  return ({ new: '신입', 'new-or-experienced': '신입·경력' + years, any: '경력무관', experienced: '경력' + years, unknown: '해석 불가' })[kind];
+}
+function describeLocation(location) {
+  const places = location.places.map(place => [place.sido, place.sigungu].filter(Boolean).join(' '));
+  const extras = [location.nationwide && '전국', location.remote === 'full' && '재택', location.remote === 'partial' && '재택 병행', location.others && `외 ${location.others === 'unknown' ? '다수' : location.others + '곳'}`].filter(Boolean);
+  return [...places, ...extras].join(' · ') || '해석 불가';
+}
+function describeDeadline(deadline) {
+  if (deadline.kind === 'date') return deadline.date + (deadline.time ? ' ' + deadline.time : '');
+  return ({ rolling: '상시 채용', 'until-filled': '채용 시 마감', unknown: '해석 불가' })[deadline.kind];
+}
+function parsedTable(job) {
+  const rows = [['경력', job.raw.experience, describeExperience(job.parsed.experience)], ['근무지', job.raw.location, describeLocation(job.parsed.location)], ['마감', job.raw.deadline, describeDeadline(job.parsed.deadline)]];
+  return `<table class="parsed"><caption>공고 원문 표기 → kr-job-parser 해석</caption><thead><tr><th scope="col">항목</th><th scope="col">원문</th><th scope="col">해석 결과</th></tr></thead><tbody>${rows.map(([label, raw, parsed]) => `<tr><th scope="row">${label}</th><td><code>${escape(raw)}</code></td><td class="${parsed === '해석 불가' ? 'unknown' : ''}">${escape(parsed)}</td></tr>`).join('')}</tbody></table>`;
+}
 function card(job, result) {
   const saved = state.bookmarks.includes(job.id);
-  return `<article class="job-card"><div class="company-logo ${job.color}" aria-hidden="true">${job.initials}</div><div class="job-main"><div class="company-line">${escape(job.company)} <span class="source">${job.source}</span></div><button class="job-title" data-detail="${job.id}">${escape(job.title)}</button><div class="job-meta"><span>${job.locations.length ? job.locations.join('·') : '근무지 미상'} ${job.area}</span><span>${experience(job)}</span><span>${job.employment}</span></div><div class="tags"><span class="tag match">${result.status === 'review' ? '조건 확인 필요' : experience(job) === '신입' ? '신입 지원 명시' : '경력무관'}</span>${job.skills.map(skill => `<span class="tag">${escape(skill)}</span>`).join('')}${state.applications[job.id] ? `<span class="tag">${state.applications[job.id]}</span>` : ''}</div></div><div class="job-side"><button class="save" data-save="${job.id}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆ 저장됨' : '◇ 스크랩'}</button><span class="deadline">${job.deadline ? '~ ' + job.deadline.slice(5).replace('-', '.') : '채용 시 마감'}</span></div></article>`;
+  return `<article class="job-card"><div class="company-logo ${job.color}" aria-hidden="true">${job.initials}</div><div class="job-main"><div class="company-line">${escape(job.company)} <span class="source">${job.source}</span></div><button class="job-title" data-detail="${job.id}">${escape(job.title)}</button><div class="job-meta"><span>${job.locations.length ? job.locations.join('·') + ' ' + job.area : '근무지 미상'}</span><span>${experience(job)}</span><span>${job.employment}</span></div><div class="tags"><span class="tag match">${result.status === 'review' ? '조건 확인 필요' : experience(job) === '신입' ? '신입 지원 명시' : '경력무관'}</span>${job.skills.map(skill => `<span class="tag">${escape(skill)}</span>`).join('')}${state.applications[job.id] ? `<span class="tag">${state.applications[job.id]}</span>` : ''}</div></div><div class="job-side"><button class="save" data-save="${job.id}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆ 저장됨' : '◇ 스크랩'}</button><span class="deadline">${deadlineLabel(job)}</span></div></article>`;
 }
 function render() {
   const results = jobs.map(job => ({ job, result: matchJob(job, state.filters) }));
@@ -98,7 +119,7 @@ $('#job-list').addEventListener('click', event => {
   const detail = event.target.closest('[data-detail]');
   if (!detail) return;
   const job = jobs.find(value => value.id === detail.dataset.detail);
-  $('#dialog-content').innerHTML = `<span class="eyebrow">FICTIONAL JOB / 샘플 공고</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${job.locations.join('·') || '근무지 미상'} ${job.area}</p><p>${escape(job.description)}</p><p class="muted">${matchJob(job, state.filters).reason} · 기술 일치는 지원 자격 충족을 보장하지 않습니다.</p><label class="block-label">내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label><p class="form-help">가상 공고라 원문 링크와 실제 지원 기능은 없습니다. 상태는 연습용으로 저장됩니다.</p>`;
+  $('#dialog-content').innerHTML = `<span class="eyebrow">FICTIONAL JOB / 샘플 공고</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${job.locations.length ? job.locations.join('·') + ' ' + job.area : '근무지 미상'}</p><p>${escape(job.description)}</p>${parsedTable(job)}<p class="muted">${matchJob(job, state.filters).reason} · 기술 일치는 지원 자격 충족을 보장하지 않습니다.</p><label class="block-label">내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label><p class="form-help">가상 공고라 원문 링크와 실제 지원 기능은 없습니다. 상태는 연습용으로 저장됩니다.</p>`;
   $('#application-status').addEventListener('change', event => { state.applications[job.id] = event.target.value; persist(); render(); });
   $('#job-dialog').showModal();
 });
