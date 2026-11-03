@@ -58,6 +58,29 @@ describe('parseLocation', () => {
     });
   });
 
+  describe('전남광주통합특별시 (2026-07-01 출범)', () => {
+    it.each(['전남광주', '전남광주통합특별시', '전남광주특별시'])('%s → 광주와 전남 모두', (raw) => {
+      expect(placesOf(raw)).toEqual([{ sido: '광주' }, { sido: '전남' }]);
+    });
+
+    it.each([
+      ['전남광주통합특별시 광산구', { sido: '광주', sigungu: '광산구' }],
+      ['전남광주특별시 동구', { sido: '광주', sigungu: '동구' }],
+      ['전남광주통합특별시 화순군', { sido: '전남', sigungu: '화순군' }],
+      ['전남광주 나주시', { sido: '전남', sigungu: '나주시' }],
+    ] as const)('%s → 옛 행정구역으로 되짚는다', (raw, place) => {
+      expect(placesOf(raw)).toEqual([place]);
+    });
+
+    it('공공데이터 API의 쉼표 목록', () => {
+      expect(placesOf('서울,전남광주,경기')).toEqual([{ sido: '서울' }, { sido: '광주' }, { sido: '전남' }, { sido: '경기' }]);
+    });
+
+    it.each(['광주', '전남'] as const)('%s로 필터해도 통합 명칭 공고가 맞는다', (sido) => {
+      expect(matchesRegion(parseLocation('전남광주'), sido)).toBe('yes');
+    });
+  });
+
   describe('외 N곳', () => {
     it.each([
       ['서울 강남구 외 2곳', 2],
