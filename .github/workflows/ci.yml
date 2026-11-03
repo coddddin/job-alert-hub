@@ -37,6 +37,6 @@ jobs:
       - name: Test (web + kr-job-parser)
         run: pnpm test
       - name: Coverage (kr-job-parser)
-        run: pnpm --filter kr-job-parser test:coverage
+        run: pnpm -r run test:coverage
       - name: Package exports (publint, attw)
         run: pnpm -r run check:package
