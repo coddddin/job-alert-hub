@@ -1,3 +1,4 @@
+import type { Fit } from './fit.js';
 import { normalize } from './normalize.js';
 
 /** 연차 경계 하나. `inclusive`가 `false`면 `미만`·`초과`처럼 경계값을 포함하지 않는다. */
@@ -112,9 +113,6 @@ export function parseExperience(raw: string): Experience {
   if (mentionsExperienced) return { kind: 'experienced', range };
   return { kind: 'unknown', raw };
 }
-
-/** 판단 결과. 해석하지 못한 공고는 `unknown`으로 남겨 사람이 확인하게 한다. */
-export type Fit = 'yes' | 'no' | 'unknown';
 
 function withinRange(range: YearRange, years: number): boolean {
   const { min, max } = range;
