@@ -1,5 +1,5 @@
 import { loadJobs } from './lib/load-jobs.js';
-import { defaults, matchJob, notificationCandidates } from './lib/matching.js';
+import { defaults, matchJob, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 
 const data = await loadJobs({ search: location.search });
@@ -8,7 +8,6 @@ const live = data.mode === 'live';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const roles = ['all', '프론트엔드', '백엔드', '풀스택', '모바일', '게임', '데이터·AI', '임베디드', '전산·IT'];
 const statusLabel = { match: '일치', review: '확인', exclude: '제외' };
 
 let state = initialState();
@@ -19,7 +18,10 @@ let tab = 'match';
 let toastTimer;
 
 for (const select of [$('#filter-role'), $('#alert-role')]) {
-  select.innerHTML = roles.map(role => `<option value="${role}">${role === 'all' ? '분야 전체' : role}</option>`).join('');
+  select.innerHTML = ROLES.map(role => `<option value="${role}">${role === 'all' ? '분야 전체' : role}</option>`).join('');
+}
+for (const select of document.querySelectorAll('select[name="region"]')) {
+  select.innerHTML = REGIONS.map(region => `<option value="${region}">${region === 'all' ? '지역 전체' : region}</option>`).join('');
 }
 
 // ---------- 표시용 계산 ----------

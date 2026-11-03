@@ -101,7 +101,7 @@ export function toJob(item: AlioItem): CollectedJob {
     role: isIt ? '전산·IT' : (fields[0] ?? '기타'),
     employment,
     tags: fields,
-    description: `${employment} · 채용 ${String(item.recrutNope)}명 · 학력 ${education}${replacement}`,
+    description: `채용 ${String(item.recrutNope)}명 · 학력 ${education}${replacement}`,
   };
 }
 

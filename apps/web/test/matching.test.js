@@ -63,3 +63,11 @@ test('기준일에 이미 지난 마감은 제외', () => {
   assert.equal(matchJob(job).status, 'exclude');
   assert.equal(matchJob(job).reason, '마감된 공고');
 });
+test('저장 상태는 수집 공고 ID와 모든 시·도를 받아들이고 그 밖의 값은 버린다', () => {
+  const state = sanitizeState({ version: 1, filters: { region: '전남', role: '전산·IT' }, notifications: { region: '해외' }, bookmarks: ['alio:306649', 'sample-1', '<script>', 'alio:abc'], applications: { 'alio:1': '지원 완료', 'x:1:2': '합격' } });
+  assert.equal(state.filters.region, '전남');
+  assert.equal(state.filters.role, '전산·IT');
+  assert.equal(state.notifications.region, '서울');
+  assert.deepEqual(state.bookmarks, ['alio:306649', 'sample-1']);
+  assert.deepEqual(state.applications, { 'alio:1': '지원 완료' });
+});

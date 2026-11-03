@@ -70,7 +70,7 @@ describe('toJob', () => {
       role: '전산·IT',
       employment: '정규직',
       tags: ['경영.회계.사무', '정보통신'],
-      description: '정규직 · 채용 3명 · 학력 학력무관',
+      description: '채용 3명 · 학력 학력무관',
     });
   });
 
@@ -83,8 +83,9 @@ describe('toJob', () => {
   it('빈 값과 대체인력을 표시한다', () => {
     const job = toJob({ ...item, srcUrl: '  ', ncsCdNmLst: '', hireTypeNmLst: '', acbgCondNmLst: '', replmprYn: 'Y' });
     expect(job.url).toBeNull();
+    expect(job.employment).toBe('미기재');
     expect(job.role).toBe('기타');
-    expect(job.description).toBe('미기재 · 채용 3명 · 학력 미기재 · 대체인력');
+    expect(job.description).toBe('채용 3명 · 학력 미기재 · 대체인력');
   });
 });
 

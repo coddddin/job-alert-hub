@@ -1,4 +1,8 @@
-import { matchesRegion } from 'kr-job-parser';
+import { matchesRegion, SIDO } from 'kr-job-parser';
+
+export const ROLES = Object.freeze(['all', '프론트엔드', '백엔드', '풀스택', '모바일', '게임', '데이터·AI', '임베디드', '전산·IT']);
+/** 시·도 목록은 파서가 아는 값을 그대로 쓴다. 필터와 해석 규칙이 어긋나지 않게 하려고. */
+export const REGIONS = Object.freeze(['all', ...SIDO]);
 
 export const defaults = Object.freeze({ role: 'all', region: '서울', includeUnspecified: true, keyword: '' });
 
