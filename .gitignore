@@ -26,3 +26,4 @@ apps/web/data/*
 Thumbs.db
 .idea/
 .vscode/
+apps/web/site/

@@ -5,12 +5,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const root = path.dirname(fileURLToPath(import.meta.url));
+export const root = path.dirname(fileURLToPath(import.meta.url));
 // 워크스페이스 패키지의 빌드 결과물 위치. `pnpm build`로 먼저 만들어 둬야 한다.
 const parserDist = path.dirname(fileURLToPath(import.meta.resolve('kr-job-parser')));
 const js = 'text/javascript; charset=utf-8';
 
-const routes = new Map([
+/** 경로 → [파일, Content-Type]. 정적 사이트 빌드(scripts/build-site.mjs)도 이 표를 그대로 쓴다. */
+export const routes = new Map([
   ['/', ['public/index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['public/app.js', js]],
   ['/styles.css', ['public/styles.css', 'text/css; charset=utf-8']],
@@ -18,6 +19,10 @@ const routes = new Map([
   ['/lib/normalize-job.js', ['lib/normalize-job.js', js]],
   ['/lib/state.js', ['lib/state.js', js]],
   ['/data/jobs.js', ['data/jobs.js', js]],
+  ['/lib/load-jobs.js', ['lib/load-jobs.js', js]],
+  // 수집기(apps/collector)가 만든 실데이터. 아직 수집하지 않았으면 404를 돌려 샘플로 넘어간다.
+  ['/data/live/snapshot.json', ['data/live/snapshot.json', 'application/json; charset=utf-8']],
+  ['/data/live/report.json', ['data/live/report.json', 'application/json; charset=utf-8']],
 ]);
 for (const file of ['index', 'experience', 'location', 'deadline', 'normalize', 'fit']) {
   routes.set(`/vendor/kr-job-parser/${file}.js`, [path.join(parserDist, `${file}.js`), js]);
@@ -27,7 +32,7 @@ for (const file of ['index', 'experience', 'location', 'deadline', 'normalize', 
 const html = readFileSync(path.join(root, 'public/index.html'), 'utf8');
 const importMap = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
 const importMapHash = createHash('sha256').update(importMap).digest('base64');
-const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
+export const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
 
 export function createServer() {
   return http.createServer(async (req, res) => {
@@ -44,7 +49,10 @@ export function createServer() {
         'Content-Security-Policy': csp,
       });
       res.end(req.method === 'HEAD' ? undefined : body);
-    } catch { res.writeHead(500).end('Unable to load page'); }
+    } catch (error) {
+      if (error?.code === 'ENOENT') res.writeHead(404).end('Not found');
+      else res.writeHead(500).end('Unable to load page');
+    }
   });
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
