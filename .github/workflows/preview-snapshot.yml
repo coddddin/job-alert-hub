@@ -1,0 +1,26 @@
+# 임시: PR 리뷰와 README 캡처용으로 수집 결과를 data/preview 브랜치에 올린다. 머지 전에 지운다.
+name: Preview snapshot (temporary)
+on:
+  push:
+    branches: [feat/live-data]
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @job-alert-hub/collector collect --out "$RUNNER_TEMP/live"
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+      - run: |
+          cd "$RUNNER_TEMP/live"
+          git init -q -b data/preview
+          git add .
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "preview snapshot"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" data/preview

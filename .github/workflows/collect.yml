@@ -1,0 +1,55 @@
+name: Collect & Deploy
+
+# 매일 아침 공공데이터 API에서 공고를 모아 GitHub Pages에 배포한다.
+# 수집이 실패하면 배포하지 않으므로 Pages에는 마지막으로 성공한 화면이 남는다.
+on:
+  schedule:
+    - cron: '17 21 * * *' # 매일 06:17 KST
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [apps/**, packages/**, pnpm-lock.yaml, .github/workflows/collect.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Collect jobs
+        run: pnpm --filter @job-alert-hub/collector collect
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+      - name: Build static site
+        run: pnpm --filter @job-alert-hub/web build:site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/site
+
+  deploy:
+    needs: collect
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
