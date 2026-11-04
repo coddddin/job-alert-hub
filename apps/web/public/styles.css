@@ -200,3 +200,12 @@ dialog .apply-button { grid-column: 2; min-width: 240px; }
 
 /* 한국어는 어절 단위로 줄을 바꾼다 ("채용 공\n고" 방지) */
 h1, h2, .job-title, .facts dd { word-break: keep-all; overflow-wrap: anywhere; }
+
+.requirements { margin: 4px 0 18px; }
+.requirements h3 { font-size: 13px; font-weight: 700; color: var(--mute); margin: 0 0 8px; }
+.requirements ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 14px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
+.requirements details { margin-top: 6px; }
+.requirements summary { cursor: pointer; font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+.requirements .small { margin-top: 8px; }
+.requirements li.req-section { list-style: none; margin: 6px 0 0 -18px; font-weight: 700; font-size: 13px; }
+.requirements li.req-section:first-child { margin-top: 0; }
