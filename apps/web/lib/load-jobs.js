@@ -26,7 +26,7 @@ export async function loadJobs({ fetch: fetchImpl = globalThis.fetch, search = '
       collectedAt: snapshot.collectedAt,
       sources: snapshot.sources,
       // 수집기는 원문만 저장한다. 해석은 지금 이 시점의 kr-job-parser로 한다.
-      jobs: snapshot.jobs.map(job => normalizeJob({ ...job, url: safeUrl(job.url), skills: job.tags ?? [] }, snapshot.today)),
+      jobs: snapshot.jobs.map(job => normalizeJob({ ...job, url: safeUrl(job.url), applyUrl: safeUrl(job.applyUrl), skills: job.tags ?? [] }, snapshot.today)),
     };
   } catch {
     return sample;

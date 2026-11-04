@@ -58,7 +58,15 @@ function parseRate() {
   const ok = fields.filter(label => label !== '해석 불가').length;
   return { percent: Math.round((ok / fields.length) * 1000) / 10, ok, total: fields.length };
 }
-const rawCell = (raw, parsed, cls) => `<td class="${cls}"><span class="raw">“${escape(raw)}”</span><span class="parsed${parsed === '해석 불가' ? ' unknown' : ''}">${escape(parsed)}</span></td>`;
+// 사용자에게는 해석한 값만 보여준다. 공고 표기는 해석하지 못했을 때만(무엇을 확인해야 하는지 알 수 있게),
+// 또는 개발용 `?raw`를 붙였을 때만 함께 보여준다.
+const showRaw = new URLSearchParams(location.search).has('raw');
+if (showRaw) document.documentElement.classList.add('show-raw');
+const UNKNOWN = '해석 불가';
+const valueCell = (raw, parsed, cls) => {
+  const unknown = parsed === UNKNOWN;
+  return `<td class="${cls}"><span class="parsed${unknown ? ' unknown' : ''}">${unknown ? '확인 필요' : escape(parsed)}</span><span class="raw${unknown ? ' keep' : ''}">“${escape(raw)}”</span></td>`;
+};
 
 // ---------- 렌더링 ----------
 function row(job, result) {
@@ -67,9 +75,9 @@ function row(job, result) {
   return `<tr class="${result.status}">
     <td class="cell-dday"><span class="dday${calm ? ' calm' : ''}">${ddayLabel(job)}</span></td>
     <td class="cell-title"><div class="title-row"><button class="job-title" data-detail="${job.id}">${escape(job.title)}</button><button class="save" data-save="${job.id}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆' : '◇'}</button></div><span class="sub">${escape(job.company)} · ${escape(job.role)} · ${job.skills.map(escape).join(', ')}${state.applications[job.id] ? ' · ' + escape(state.applications[job.id]) : ''}</span></td>
-    ${rawCell(job.raw.experience, describeExperience(job.parsed.experience), 'cell-exp')}
-    ${rawCell(job.raw.location, describeLocation(job.parsed.location), 'cell-loc')}
-    <td class="cell-ddl"><span class="raw">${escape(job.raw.deadline)}</span><span class="parsed${job.deadlineKind === 'unknown' ? ' unknown' : ''}">${escape(describeDeadline(job.parsed.deadline))}</span></td>
+    ${valueCell(job.raw.experience, describeExperience(job.parsed.experience), 'cell-exp')}
+    ${valueCell(job.raw.location, describeLocation(job.parsed.location), 'cell-loc')}
+    ${valueCell(job.raw.deadline, describeDeadline(job.parsed.deadline), 'cell-ddl')}
     <td class="cell-status"><span class="tag ${result.status}">${statusLabel[result.status]}</span>${result.status === 'exclude' ? `<span class="reason">${escape(result.reason)}</span>` : ''}</td>
   </tr>`;
 }
@@ -151,9 +159,29 @@ function preview() {
     ? matches.map(job => `<li>${escape(job.title)}<small>${escape(job.company)} · ${ddayLabel(job)} · ${escape(describeLocation(job.parsed.location))}</small></li>`).join('')
     : '<li class="muted">조건에 맞는 샘플 공고가 없어요.</li>';
 }
-function parsedTable(job) {
-  const rows = [['경력', job.raw.experience, describeExperience(job.parsed.experience)], ['근무지', job.raw.location, describeLocation(job.parsed.location)], ['마감', job.raw.deadline, describeDeadline(job.parsed.deadline)]];
-  return `<table class="parse-table"><caption>공고 원문 표기 → kr-job-parser 해석</caption><thead><tr><th scope="col">항목</th><th scope="col">원문</th><th scope="col">해석 결과</th></tr></thead><tbody>${rows.map(([label, raw, parsed]) => `<tr><th scope="row">${label}</th><td>“${escape(raw)}”</td><td class="${parsed === '해석 불가' ? 'unknown' : ''}">${escape(parsed)}</td></tr>`).join('')}</tbody></table>`;
+/** 지원 버튼은 공고 상세(공고문·접수 안내)로, 기관 채용 페이지는 보조 링크로 둔다. */
+function applyLinks(job) {
+  const primary = job.applyUrl ?? job.url ?? null;
+  return { primary, secondary: job.url && job.url !== primary ? job.url : null };
+}
+function applyBlock(job) {
+  const { primary, secondary } = applyLinks(job);
+  const days = daysLeft(job);
+  const when = job.deadline ? `<strong>${ddayLabel(job)}</strong> · ${shortDate(job.deadline)} 마감` : job.deadlineKind === 'unknown' ? '마감일 확인 필요' : '상시 · 채용 시 마감';
+  const urgent = days !== null && days >= 0 && days <= 3;
+  if (job.closed) return `<div class="apply"><span class="apply-button" aria-disabled="true">마감된 공고예요</span><p class="apply-meta">${when}</p></div>`;
+  if (!primary) return `<div class="apply"><span class="apply-button" aria-disabled="true">샘플 공고라 지원 링크가 없어요</span><p class="apply-meta">${when}</p></div>`;
+  return `<div class="apply${urgent ? ' urgent' : ''}">
+    <a class="apply-button" href="${escape(primary)}" target="_blank" rel="noopener noreferrer">${escape(job.source)}에서 지원하기 <span aria-hidden="true">↗</span></a>
+    <p class="apply-meta">${when}${secondary ? ` · <a href="${escape(secondary)}" target="_blank" rel="noopener noreferrer">기관 채용 페이지</a>` : ''}</p>
+  </div>`;
+}
+function facts(job) {
+  const rows = [['경력', job.raw.experience, describeExperience(job.parsed.experience)], ['근무지', job.raw.location, describeLocation(job.parsed.location)], ['마감', job.raw.deadline, describeDeadline(job.parsed.deadline)], ['모집', null, job.description]];
+  return `<dl class="facts">${rows.filter(([, , value]) => value).map(([label, raw, value]) => {
+    const unknown = value === UNKNOWN;
+    return `<div><dt>${label}</dt><dd${unknown ? ' class="unknown"' : ''}>${unknown ? `확인 필요 <small>공고 표기 “${escape(raw)}”를 해석하지 못했어요</small>` : escape(value)}${!unknown && raw && showRaw ? ` <small class="raw-inline">“${escape(raw)}”</small>` : ''}</dd></div>`;
+  }).join('')}</dl>`;
 }
 
 fillForm($('#filter-form'), state.filters);
@@ -185,7 +213,10 @@ $('#job-list').addEventListener('click', event => {
   const detail = event.target.closest('[data-detail]');
   if (!detail) return;
   const job = jobs.find(value => value.id === detail.dataset.detail);
-  $('#dialog-content').innerHTML = `<span class="eyebrow">${live ? escape(job.source) + ' · 실제 공고' : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${escape(describeLocation(job.parsed.location))} · ${escape(job.employment)}</p><p>${escape(job.description)}</p>${job.url ? `<p><a class="source-link" href="${escape(job.url)}" target="_blank" rel="noopener noreferrer">원문 공고 보기 ↗</a></p>` : ''}${parsedTable(job)}<p class="muted small">${escape(matchJob(job, state.filters).reason)} · 기술 일치는 지원 자격 충족을 보장하지 않아요.</p><label>내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label>`;
+  const head = `<span class="eyebrow">${live ? escape(job.source) + ' · 실제 공고' : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${escape(job.employment)}</p>`;
+  const body = `${facts(job)}<p class="muted small">${escape(matchJob(job, state.filters).reason)}</p><label>내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label>`;
+  // 내용은 스크롤되고, 지원 버튼은 아래에 고정해 언제든 누를 수 있게 한다.
+  $('#dialog-content').innerHTML = `<div class="dialog-scroll">${head}${body}</div>${applyBlock(job)}`;
   $('#application-status').addEventListener('change', event => { state.applications[job.id] = event.target.value; persist(); render(); });
   $('#job-dialog').showModal();
 });

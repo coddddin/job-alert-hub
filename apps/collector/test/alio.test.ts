@@ -65,13 +65,18 @@ describe('toJob', () => {
       company: '한국테스트공사',
       title: '2026년 전산직 채용',
       url: 'https://example.com/recruit',
+      applyUrl: 'https://job.alio.go.kr/recruitview.do?idx=1',
       raw: { experience: '신입+경력', location: '서울,전남광주', deadline: '20261117' },
       kind: 'development',
       role: '전산·IT',
       employment: '정규직',
       tags: ['경영.회계.사무', '정보통신'],
-      description: '채용 3명 · 학력 학력무관',
+      description: '채용 3명 · 학력무관',
     });
+  });
+
+  it('학력 조건이 여러 개면 앞에 학력을 붙인다', () => {
+    expect(toJob({ ...item, acbgCondNmLst: '학력무관,대졸(4년)' }).description).toBe('채용 3명 · 학력 학력무관 · 대졸(4년)');
   });
 
   it('정보통신이 아닌 직무는 첫 분류를 역할로 쓴다', () => {

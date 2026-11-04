@@ -36,7 +36,9 @@ parseDeadline('~11/14(금)', { today: '2026-11-03' });
 
 Job Alert Hub는 매일 공공기관 실공고 약 500건을 모아 이 라이브러리로 해석합니다. 실제 공고에 처음 돌렸을 때 해석 성공률은 **63.3%** 였습니다. 새로 생긴 행정구역(`전남광주`)과 구분자 없는 날짜(`20261117`)를 몰랐기 때문입니다. 두 표기를 규칙과 테스트로 추가해 **99.9%** 가 되었습니다 ([자세히](../../README.md#실데이터가-찾아낸-것)).
 
-<img src="https://raw.githubusercontent.com/coddddin/job-alert-hub/main/docs/images/live-dialog.png" alt="실제 공고의 원문 표기와 kr-job-parser 해석 결과를 함께 보여주는 화면" width="520">
+<img src="https://raw.githubusercontent.com/coddddin/job-alert-hub/main/docs/images/live-raw.png" alt="실제 공고의 해석 결과 아래에 원문 표기를 함께 보여주는 개발용 화면">
+
+*개발용 `?raw` 모드. 평소에는 해석 결과만 보이고, 원문은 해석하지 못한 항목에만 나타납니다.*
 
 ## 설치
 

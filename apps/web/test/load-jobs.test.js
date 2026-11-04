@@ -9,7 +9,7 @@ const snapshot = {
   today: '2026-11-03',
   sources: [{ name: 'alio', label: '잡알리오 (공공데이터포털)', total: 2, skipped: 0 }],
   jobs: [
-    { id: 'alio:1', source: '잡알리오', company: '한국테스트공사', title: '전산직 채용', url: 'https://example.com', raw: { experience: '신입+경력', location: '서울,전남광주', deadline: '20261117' }, kind: 'development', role: '전산·IT', employment: '정규직', tags: ['정보통신'], description: '' },
+    { id: 'alio:1', source: '잡알리오', company: '한국테스트공사', title: '전산직 채용', url: 'https://example.com', applyUrl: 'https://job.alio.go.kr/recruitview.do?idx=1', raw: { experience: '신입+경력', location: '서울,전남광주', deadline: '20261117' }, kind: 'development', role: '전산·IT', employment: '정규직', tags: ['정보통신'], description: '' },
     { id: 'alio:2', source: '잡알리오', company: '한국테스트공단', title: '사무직 채용', url: 'javascript:alert(1)', raw: { experience: '경력', location: '해외', deadline: '20261101' }, kind: 'other', role: '경영.회계.사무', employment: '정규직', tags: [], description: '' },
   ],
 };
@@ -31,6 +31,8 @@ test('실데이터 스냅샷이 있으면 원문을 해석해 쓴다', async () 
 test('http(s)가 아닌 원문 링크는 버린다', async () => {
   const data = await loadJobs({ fetch: respond(snapshot) });
   assert.equal(data.jobs[1].url, null);
+  assert.equal(data.jobs[0].applyUrl, 'https://job.alio.go.kr/recruitview.do?idx=1');
+  assert.equal(data.jobs[1].applyUrl, null, '없는 값도 null로 맞춘다');
   assert.equal(safeUrl('HTTPS://example.com'), 'HTTPS://example.com');
   assert.equal(safeUrl(undefined), null);
 });
