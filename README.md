@@ -149,14 +149,14 @@ job-alert-hub/
 │  ├─ collector/        # 공공데이터 수집 + 해석 리포트 (TypeScript)
 │  └─ web/              # 공고 목록·알림 설정 웹
 └─ packages/
-   └─ kr-job-parser/    # 채용공고 표기 해석 라이브러리 (npm 배포 대상)
+   └─ kr-job-parser/    # 채용공고 표기 해석 라이브러리 + CLI (npm 배포 대상)
 ```
 
 | 패키지 | 설명 |
 | --- | --- |
 | [`apps/collector`](apps/collector) | 수집처별 어댑터로 공고를 모아 원문 그대로 스냅샷을 만들고, 해석 성공률 리포트를 냅니다. 응답은 런타임에 검증합니다. |
 | [`apps/web`](apps/web) | 스냅샷(없으면 가상 공고)의 원문 표기를 `kr-job-parser`로 해석해 목록·알림 조건에 씁니다. 같은 경로 표로 로컬 서버와 Pages용 정적 사이트를 만듭니다. |
-| [`packages/kr-job-parser`](packages/kr-job-parser) | `경력 3년↑`, `서울 외 2곳`, `~11/14(금)` 같은 제각각인 경력·근무지·마감 표기를 타입이 있는 데이터로 바꿉니다. 실연동 시 "공통 형식 변환" 단계를 맡습니다. |
+| [`packages/kr-job-parser`](packages/kr-job-parser) | `경력 3년↑`, `서울 외 2곳`, `~11/14` 같은 제각각인 경력·근무지·마감 표기를 타입이 있는 데이터로 바꿉니다. 라이브러리와 CLI(`npx kr-job-parser loc "서울 외 2곳"`)를 함께 제공합니다. |
 
 웹은 브라우저에서 파서를 직접 불러옵니다. 빌드된 파일을 `vendor/kr-job-parser/`로 제공하고, 페이지의 import map이 `kr-job-parser`를 그 경로로 연결합니다. 인라인 import map은 CSP에 해시로만 허용해 `unsafe-inline` 없이 동작합니다. Pages는 응답 헤더를 정할 수 없어 같은 CSP를 meta 태그로 넣습니다.
 

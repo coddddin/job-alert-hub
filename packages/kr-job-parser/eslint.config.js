@@ -22,7 +22,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['eslint.config.js'],
+    files: ['eslint.config.js', 'scripts/**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    // 빌드 도구 스크립트는 Node 전역(console 등)을 쓴다. 정의되지 않은 이름 검사는 TypeScript 쪽에 맡긴다.
+    files: ['scripts/**/*.mjs'],
+    rules: { 'no-undef': 'off' },
   },
 );

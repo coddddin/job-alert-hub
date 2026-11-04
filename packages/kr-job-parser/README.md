@@ -47,6 +47,40 @@ pnpm add kr-job-parser
 
 Node.js 22 이상, ESM 전용입니다. 런타임 의존성은 없습니다.
 
+## CLI
+
+설치하지 않고 바로 써 볼 수 있습니다.
+
+```console
+$ npx kr-job-parser exp "경력 3년↑"
+✓ 경력 3년↑ → 경력 3년 이상
+
+$ npx kr-job-parser loc "전남광주통합특별시 광산구"
+✓ 전남광주통합특별시 광산구 → 광주 광산구
+
+$ npx kr-job-parser dl "~11/14 18:00" --today 2026-11-03
+✓ ~11/14 18:00 → 2026-11-14 (토) 18:00 마감
+```
+
+원문을 한 줄에 하나씩 넘기면 모두 해석하고, **해석 성공률과 실패한 원문 상위 5개**를 표준 오류로 요약합니다. 수집한 데이터를 넣어 보면 어떤 표기 때문에 규칙을 추가해야 하는지 바로 보입니다.
+
+```console
+$ cut -f3 jobs.tsv | npx kr-job-parser location
+✓ 서울,전남광주 → 서울 · 광주 · 전남
+✗ 해외 → 근무지 없음 (해석하지 못함: 해외)
+✓ 전국 → 전국
+근무지 해석 2/3 (66.7%)
+  ✗ 해외 ×1
+```
+
+| 옵션 | 설명 |
+| --- | --- |
+| `--json` | 파서 결과를 JSON으로 출력합니다. 여러 줄이면 JSON Lines라서 `jq`로 바로 넘길 수 있습니다. 요약은 표준 오류로 가므로 섞이지 않습니다. |
+| `--strict` | 해석하지 못한 줄이 하나라도 있으면 종료 코드 1을 돌려줍니다. CI에서 데이터 회귀를 막는 검사로 쓸 수 있습니다. |
+| `--today <YYYY-MM-DD>` | 마감 계산 기준일입니다. 기본값은 실행 환경의 시간대와 상관없이 한국 날짜입니다. |
+
+필드 이름은 `experience`·`location`·`deadline` 외에 `exp`·`loc`·`dl`, `경력`·`근무지`·`마감`도 받습니다. 종료 코드는 `0` 성공, `1` `--strict`에서 해석 실패, `2` 사용법 오류입니다.
+
 ## 사용법
 
 ### 공고 하나를 판단하기
@@ -234,6 +268,8 @@ type Time = `${number}:${number}`;
 - **`Sido`를 배열에서 만든 이유**: `SIDO` 배열을 `as const`로 선언하고 타입을 `(typeof SIDO)[number]`로 만들어, 시·도 목록과 타입이 어긋날 수 없게 했습니다.
 - **ESM 전용, 의존성 없음**: Node.js 22.12부터 CommonJS에서도 `require(esm)`이 가능해 이중 빌드의 복잡도를 감수할 이유가 줄었습니다. 패키지 설정은 CI에서 [publint](https://publint.dev)와 [Are the types wrong?](https://arethetypeswrong.github.io)로 검사합니다.
 - **통합 시·도를 새 값으로 만들지 않은 이유**: `Sido`에 `전남광주`를 추가하면 `광주`로 저장해 둔 사용자 필터가 통합 명칭 공고와 맞지 않게 됩니다. 공고와 사용자 모두 아직 옛 이름을 쓰므로 17곳은 그대로 두고, 통합 명칭을 두 지역으로 풀었습니다.
+- **CLI는 입출력을 주입받습니다**: `run(argv, io)`는 `process`에 직접 손대지 않고 표준 입출력·현재 시각·버전을 인자로 받습니다. 그래서 진입점(`bin.ts`)은 연결만 하고, 동작은 가짜 입출력으로 단위 테스트합니다. 빌드 결과물도 실제 프로세스로 한 번 더 실행해 봅니다. 원문을 인자로 받았을 때는 표준 입력을 열지 않습니다. 열어 두면 입력이 끝나기를 기다리느라 프로세스가 끝나지 않기 때문입니다 (개발 중 실제로 겪었습니다).
+- **배포물 자체를 검사**: `check:package`는 publint·attw로 `package.json` 설정을 보고, 마지막으로 실제 tarball을 빈 프로젝트에 설치해 `import`와 `npx kr-job-parser`가 동작하는지 확인합니다 ([scripts/smoke-pack.mjs](scripts/smoke-pack.mjs)).
 - **TypeScript 6.0 고정**: TypeScript 7이 나왔지만 린터(typescript-eslint)가 아직 6.0까지만 지원해 6.0.x에 맞췄습니다.
 
 ## 알려진 한계
@@ -248,7 +284,7 @@ type Time = `${number}:${number}`;
 - [x] 경력 요건 (`parseExperience`)
 - [x] 근무지 (`parseLocation`)
 - [x] 마감일 (`parseDeadline`)
-- [ ] 원문을 넣어 바로 결과를 보는 CLI
+- [x] 원문을 넣어 바로 결과를 보는 CLI (`npx kr-job-parser`)
 - [x] 실제 공고 표기로 검증하고 규칙 보강 (공공기관 공고 519건, 63.3% → 99.9%)
 - [ ] 민간 채용 사이트 표기로 검증
 
@@ -260,6 +296,7 @@ pnpm --filter kr-job-parser test        # 테스트
 pnpm --filter kr-job-parser test:coverage
 pnpm --filter kr-job-parser lint
 pnpm --filter kr-job-parser build
+pnpm --filter kr-job-parser check:package   # publint · attw · tarball 설치 후 실행 확인
 ```
 
 ## 라이선스
