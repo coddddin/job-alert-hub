@@ -3,7 +3,7 @@ name: Release kr-job-parser
 # packages/kr-job-parser/package.json의 version을 올려 main에 머지하면,
 # 그 버전이 npm에 아직 없을 때만 검사 → npm 배포 → Git 태그 → GitHub Release를 만든다.
 # 인증은 npm Trusted Publishing(OIDC)이라 저장해 둔 토큰이 없다.
-# (npm은 첫 배포만 OIDC로 할 수 없어서, 그때만 NPM_TOKEN 시크릿이 있으면 그것을 쓴다.)
+# (첫 배포 0.4.0만 일회용 토큰으로 했고, 이후 토큰은 폐기했다.)
 on:
   push:
     branches: [main]
@@ -65,17 +65,9 @@ jobs:
         name: Release notes
         run: node scripts/release-notes.mjs "${{ steps.decide.outputs.version }}" > "$RUNNER_TEMP/notes.md"
 
-      - if: steps.decide.outputs.publish == 'true' && env.HAS_NPM_TOKEN == 'true'
-        name: Publish (first release, token)
-        run: npm publish --provenance --access public
-        env:
-          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - if: steps.decide.outputs.publish == 'true' && env.HAS_NPM_TOKEN != 'true'
+      - if: steps.decide.outputs.publish == 'true'
         name: Publish (Trusted Publishing)
         run: npm publish --provenance --access public
-        env:
-          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
 
       - if: steps.decide.outputs.publish == 'true'
         name: Tag and GitHub Release
