@@ -63,7 +63,7 @@ export function toMarkdown(report: ParseReport, collectedAt: string): string {
     '',
     `수집 ${collectedAt} · 공고 ${String(report.jobs)}건`,
     '',
-    '| 필드 | 해석 | 성공률 |',
+    '| 필드 | 해석 | 해석률 |',
     '| --- | ---: | ---: |',
     ...FIELDS.map((field) => `| ${LABEL[field]} | ${String(report[field].parsed)} / ${String(report[field].total)} | ${percent(report[field])} |`),
   ];

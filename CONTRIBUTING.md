@@ -1,6 +1,6 @@
 # 기여 안내
 
-현재는 샘플 기반 로컬 프로토타입을 제공하며 실연동을 준비하는 단계입니다. 작은 개선 제안부터 환영합니다.
+공공기관 채용공고를 매일 수집해 배포하고 있고, 표기 해석 라이브러리 `kr-job-parser`는 npm에 배포되어 있습니다. 작은 개선 제안부터 환영합니다. 해석하지 못하는 표기를 발견했다면 원문 그대로 이슈에 남겨 주세요.
 
 ## 의견 제안
 
@@ -18,7 +18,11 @@ GitHub Issues에서 기능 제안 또는 문제 제보 양식을 사용해 주�
 
 ## 검증
 
-Node.js 22 이상에서 저장소 루트의 `pnpm install`과 `pnpm check`로 린트·타입 검사·테스트·빌드를 한 번에 확인합니다. 웹은 `kr-job-parser` 빌드 결과를 쓰므로 `pnpm build` 후 `pnpm --filter @job-alert-hub/web start`로 실행합니다. `kr-job-parser`에 새 표기를 지원할 때는 테스트 표에 입력과 기대 결과를 먼저 추가합니다. 문서 변경은 링크, 구현 상태 표시, 설계 간 모순을 확인합니다.
+Node.js 22 이상에서 저장소 루트의 `pnpm install`과 `pnpm check`로 빌드·린트·타입 검사·테스트·패키지 검사를 한 번에 확인합니다. 웹은 `kr-job-parser` 빌드 결과를 쓰므로 `pnpm build` 후 `pnpm --filter @job-alert-hub/web start`로 실행합니다. `kr-job-parser`에 새 표기를 지원할 때는 테스트 표에 입력과 기대 결과를 먼저 추가합니다. 문서 변경은 링크, 구현 상태 표시, 설계 간 모순을 확인합니다. 지표를 적을 때는 무엇을 세는지 함께 적습니다(예: 해석률은 정확도가 아님).
+
+## 배포 (kr-job-parser)
+
+`packages/kr-job-parser/package.json`의 버전을 올리고 CHANGELOG에 같은 버전 항목을 적어 머지하면 [Release 워크플로](.github/workflows/release.yml)가 검증 후 npm에 배포합니다. 토큰 없이 Trusted Publishing으로 배포합니다.
 
 필터 테스트에는 신입·경력무관·부문별 경력·근무지 미상 사례를 포함합니다. 알림 테스트에는 중복·재시도·수신 거부 사례를 포함합니다. 샘플 검증과 실제 서비스 연동 검증을 구분해 기록합니다.
 

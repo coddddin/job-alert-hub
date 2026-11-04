@@ -110,7 +110,7 @@ describe('run: 표준 입력', () => {
     expect(io.err.split('\n').slice(1, 7)).toEqual(['  ✗ b ×2', '  ✗ a ×1', '  ✗ c ×1', '  ✗ d ×1', '  ✗ e ×1', '']);
   });
 
-  it('빈 입력이면 성공률 대신 -', async () => {
+  it('빈 입력이면 해석률 대신 -', async () => {
     const io = fakeIo([]);
     await run(['exp'], io);
     expect(io.err).toBe('경력 해석 0/0 (-)\n');

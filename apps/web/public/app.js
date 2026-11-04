@@ -112,7 +112,7 @@ function render() {
   $('#job-list').innerHTML = visible.length
     ? visible.map(x => row(x.job, x.result)).join('')
     : `<tr class="empty"><td colspan="6">${view === 'saved' ? '이 탭에 해당하는 스크랩 공고가 없어요.' : '이 탭에 해당하는 공고가 없어요. 필터를 바꿔 보세요.'}</td></tr>`;
-  $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석 성공률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 기준입니다.`;
+  $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 중 '해석 불가'가 아닌 비율이며, 정답과 맞는지(정확도)를 잰 값은 아닙니다.`;
   $('#colophon-note').textContent = live
     ? `출처: ${data.sources.map(source => source.label).join(', ')} · 수집 ${new Date(data.collectedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
     : `샘플 기준일 ${today} · 실제 공고 아님`;

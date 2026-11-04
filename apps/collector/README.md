@@ -26,7 +26,7 @@ src/
 │  └─ alio.ts       # 공공데이터포털 · 잡알리오 어댑터
 ├─ job.ts           # 수집처와 무관한 공고 형식(CollectedJob), 스냅샷 형식
 ├─ collect.ts       # 수집처를 돌려 스냅샷으로 묶기, 한국 날짜 계산
-├─ report.ts        # 해석 성공률 리포트
+├─ report.ts        # 해석률 리포트
 └─ cli.ts           # 실행 진입점 (파일 쓰기, 종료 코드)
 ```
 

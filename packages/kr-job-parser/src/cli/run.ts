@@ -29,7 +29,7 @@ export const HELP = `kr-job-parser — 채용공고의 경력·근무지·마감
 
 사용법
   kr-job-parser <필드> <원문>          원문 하나를 해석
-  <명령> | kr-job-parser <필드>         한 줄에 원문 하나씩 해석하고 성공률을 요약
+  <명령> | kr-job-parser <필드>         한 줄에 원문 하나씩 해석하고 해석률을 요약
 
 필드
   experience (exp, 경력)    예: "경력 3년↑", "신입·경력"
