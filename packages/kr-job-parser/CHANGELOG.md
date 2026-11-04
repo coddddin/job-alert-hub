@@ -2,6 +2,12 @@
 
 이 파일은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식을 따르고, 버전은 [유의적 버전](https://semver.org/lang/ko/)을 따릅니다.
 
+## [0.4.0] - 2026-11-05
+
+### Added
+
+- CLI `kr-job-parser <experience|location|deadline> [원문]`. 원문을 인자로 하나 받거나, 표준 입력으로 한 줄에 하나씩 받아 해석 성공률과 실패 원문 상위 5개를 요약합니다. `--json`(JSON Lines), `--strict`(실패 시 종료 코드 1), `--today` 옵션을 지원합니다.
+
 ## [0.3.0] - 2026-11-03
 
 실제 공공기관 공고 519건으로 처음 검증하면서 드러난 표기를 추가했습니다. 해석 성공률이 63.3%에서 99.9%로 올랐습니다.
