@@ -13,6 +13,14 @@ test('브라우저에서 확인한 주소 형식을 그대로 만든다', () => 
   assert.equal(links.wanted.url, 'https://www.wanted.co.kr/wdlist/518/669?country=kr&job_sort=job.latest_order&years=0&years=0&locations=seoul.all');
 });
 
+test('잡코리아 분야 전체는 대분류 코드 대신 소분류를 모두 넣는다 (대분류만 넣으면 0건)', () => {
+  const duty = new URL(byId(base).jobkorea.url).searchParams.get('duty').split(',');
+  assert.equal(duty.length, 18);
+  assert.equal(duty[0], '1000229');
+  assert.equal(duty.at(-1), '1000246');
+  assert.ok(!duty.includes('10031'));
+});
+
 test('경력무관 제외는 사람인·잡코리아 경력 조건에 반영된다', () => {
   const links = byId({ ...base, includeUnspecified: false });
   assert.ok(!new URL(links.saramin.url).searchParams.has('exp_none'));

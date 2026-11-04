@@ -129,6 +129,18 @@ function renderSiteLinks() {
   }).join('');
 }
 
+// 북마클릿은 `pnpm build`가 만든다. 아직 빌드하지 않았으면 설치 버튼만 숨기고 나머지는 그대로 쓴다.
+import('./lib/bookmarklet.js').then(({ BOOKMARKLET, PARSER_VERSION }) => {
+  const link = $('#bookmarklet-link');
+  link.href = BOOKMARKLET;
+  $('#bookmarklet-meta').textContent = `kr-job-parser ${PARSER_VERSION} 포함 · ${Math.round(BOOKMARKLET.length / 1024)}KB · 외부 스크립트를 불러오지 않음`;
+  // 이 페이지에서 누르면 CSP가 막는다. 끌어다 놓는 버튼이라는 걸 알려 준다.
+  link.addEventListener('click', event => { event.preventDefault(); toast('북마크바로 끌어다 놓은 뒤 잡코리아 화면에서 눌러 주세요.'); });
+  $('#open-bookmarklet').hidden = false;
+  $('#open-bookmarklet').addEventListener('click', () => $('#bookmarklet-dialog').showModal());
+  $('#close-bookmarklet').addEventListener('click', () => $('#bookmarklet-dialog').close());
+}).catch(() => {});
+
 // ---------- 상태와 이벤트 ----------
 function toast(message) {
   $('#toast').textContent = message; $('#toast').hidden = false;

@@ -14,8 +14,8 @@ const SARAMIN_REGION = Object.freeze({
   전북: '113000', 충북: '114000', 충남: '115000', 제주: '116000', 세종: '118000',
 });
 
-/** 잡코리아 local. 광주·전남은 잡코리아에서도 '전남광주' 하나다. */
-const JOBKOREA_REGION = Object.freeze({
+/** 잡코리아 local. 광주·전남은 잡코리아에서도 '전남광주' 하나다. 북마클릿이 주소에서 조건을 되읽을 때도 쓴다. */
+export const JOBKOREA_REGION = Object.freeze({
   서울: 'I000', 경기: 'B000', 인천: 'K000', 부산: 'H000', 대구: 'F000', 광주: 'L000', 전남: 'L000',
   대전: 'G000', 울산: 'J000', 세종: '1000', 강원: 'A000', 경남: 'C000', 경북: 'D000', 전북: 'M000',
   충남: 'O000', 충북: 'P000', 제주: 'N000',
@@ -28,7 +28,11 @@ const WANTED_REGION = Object.freeze({
   전북: 'jeolla', 전남: 'jeolla', 경북: 'gyeongsang', 경남: 'gyeongsang', 제주: 'jeju',
 });
 
-const JOBKOREA_DEV = '10031'; // AI·개발·데이터 전체
+/**
+ * 잡코리아 'AI·개발·데이터' 소분류 전체.
+ * 대분류 코드(10031)를 duty에 넣으면 결과가 0건이 되므로 소분류를 모두 나열한다.
+ */
+const JOBKOREA_DEV = Array.from({ length: 18 }, (_, i) => String(1000229 + i));
 /** 잡코리아 duty 소분류. 여러 개를 쉼표로 넣을 수 있다. */
 const JOBKOREA_ROLE = Object.freeze({
   프론트엔드: ['1000230'], 백엔드: ['1000229'], 풀스택: ['1000229', '1000230', '1000231'],
@@ -80,7 +84,7 @@ function jobkorea({ role, region, includeUnspecified, keyword }) {
   url.searchParams.set('tabType', 'recruit');
   url.searchParams.set('careerType', includeUnspecified ? '1,4' : '1');
   if (region !== 'all') url.searchParams.set('local', JOBKOREA_REGION[region]);
-  url.searchParams.set('duty', role === 'all' ? JOBKOREA_DEV : JOBKOREA_ROLE[role].join(','));
+  url.searchParams.set('duty', (role === 'all' ? JOBKOREA_DEV : JOBKOREA_ROLE[role]).join(','));
   const dropped = [];
   if (region === '광주' || region === '전남') dropped.push('근무지 → 전남광주');
   return { url: url.href, dropped };

@@ -52,7 +52,7 @@ test('정적 사이트 빌드는 서버와 같은 파일을 내보내고 CSP를 
   const out = await mkdtemp(`${tmpdir()}/site-`);
   t.after(() => rm(out, { recursive: true, force: true }));
   const written = await buildSite(out);
-  for (const file of ['/', '/app.js', '/lib/load-jobs.js', '/vendor/kr-job-parser/location.js']) assert.ok(written.includes(file), file);
+  for (const file of ['/', '/app.js', '/lib/load-jobs.js', '/lib/bookmarklet.js', '/vendor/kr-job-parser/location.js']) assert.ok(written.includes(file), file);
   const html = await readFile(`${out}/index.html`, 'utf8');
   assert.match(html, /http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-/);
   assert.doesNotMatch(html, /frame-ancestors/);
