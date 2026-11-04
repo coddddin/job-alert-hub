@@ -128,7 +128,7 @@ DATA_GO_KR_KEY=발급받은_일반_인증키 pnpm --filter @job-alert-hub/collec
 전체 검증은 저장소 루트에서 한 번에 실행합니다.
 
 ```sh
-pnpm check   # lint → typecheck → build → test → 패키지 설정 검사
+pnpm check   # build → lint → typecheck → test → 패키지 설정 검사
 ```
 
 - 설정과 스크랩은 이 브라우저의 로컬 저장소에만 보관되며 기기 간 동기화하지 않습니다.
