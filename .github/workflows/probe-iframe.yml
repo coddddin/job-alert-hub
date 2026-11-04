@@ -1,0 +1,17 @@
+name: Probe iframe headers (temporary)
+on:
+  push:
+    branches: [probe/jobkorea-iframe]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in "https://www.jobkorea.co.kr/Starter/calendar/sub/month?edu=5" "http://www.jobkorea.co.kr/Starter/calendar/sub/month?edu=5" "https://www.jobkorea.co.kr/Starter/calendar/sub/week?edu=5"; do
+            echo "=== $u"
+            curl -sS -o /tmp/body.html -D - -A "Mozilla/5.0" --max-time 20 "$u" | grep -iE "^HTTP|x-frame-options|content-security-policy|location:|content-type" || true
+            echo "bytes: $(wc -c < /tmp/body.html)"
+            grep -oiE "<title>[^<]*" /tmp/body.html | head -1 || true
+          done
