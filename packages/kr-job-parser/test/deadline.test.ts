@@ -14,6 +14,8 @@ describe('parseDeadline', () => {
       ['2026년 11월 14일까지', '2026-11-14'],
       ['26.11.14', '2026-11-14'],
       ['2027.1.5', '2027-01-05'],
+      ['20261117', '2026-11-17'],
+      ['~20261117', '2026-11-17'],
     ] as const)('%s → %s', (raw, date) => {
       expect(parse(raw)).toEqual({ kind: 'date', date });
     });
@@ -87,6 +89,10 @@ describe('parseDeadline', () => {
     it.each(['', '협의', '2/30', '2026.13.01'])('"%s"', (raw) => {
       expect(parse(raw)).toEqual({ kind: 'unknown', raw });
     });
+  });
+
+  it.each(['20261399', '12345678', '202611170'])('구분자 없는 날짜 형식이 아니면 날짜로 보지 않는다: %s', (raw) => {
+    expect(parse(raw)).toEqual({ kind: 'unknown', raw });
   });
 
   it('기준일이 잘못되면 RangeError를 던진다', () => {

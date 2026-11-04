@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "build:site": "node scripts/build-site.mjs"
   },
   "dependencies": {
     "kr-job-parser": "workspace:*"

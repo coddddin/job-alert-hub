@@ -47,10 +47,22 @@ const ALIASES: Readonly<Record<Sido, readonly string[]>> = {
   제주: ['제주특별자치도', '제주도', '제주'],
 };
 
-/** 긴 별칭부터 비교해야 `서울특별시`가 `서울`보다 먼저 잡힌다. */
-const ALIAS_LIST: readonly (readonly [alias: string, sido: Sido])[] = SIDO.flatMap((sido) =>
-  ALIASES[sido].map((alias) => [alias, sido] as const),
-).sort(([a], [b]) => b.length - a.length);
+/**
+ * 2026년 7월 1일 광주광역시와 전라남도가 전남광주통합특별시로 합쳐졌다.
+ * 공고와 사용자 필터에는 여전히 `광주`·`전남`이 쓰이므로 시·도 목록은 그대로 두고,
+ * 통합 명칭은 두 지역을 모두 가리키는 것으로 해석한다.
+ */
+const MERGED_ALIASES = ['전남광주통합특별시', '전남광주특별시', '전남광주'] as const;
+const MERGED: readonly Sido[] = ['광주', '전남'];
+
+/** 옛 광주광역시의 자치구. 통합 명칭 뒤에 오면 광주로, 그 밖의 시·군은 전남으로 본다. */
+const GWANGJU_GU = new Set(['동구', '서구', '남구', '북구', '광산구']);
+
+/** 긴 별칭부터 비교해야 `서울특별시`가 `서울`보다, `전남광주`가 `전남`보다 먼저 잡힌다. */
+const ALIAS_LIST: readonly (readonly [alias: string, sidos: readonly Sido[]])[] = [
+  ...SIDO.flatMap((sido) => ALIASES[sido].map((alias) => [alias, [sido]] as const)),
+  ...MERGED_ALIASES.map((alias) => [alias, MERGED] as const),
+].sort(([a], [b]) => b.length - a.length);
 
 /** 근무지 하나. `sigungu`는 `강남구`, `성남시 분당구`처럼 원문 표기를 유지한다. */
 export interface Place {
@@ -81,14 +93,14 @@ const SEPARATORS = /[,·/|、()[\]]|\s및\s|\s또는\s/u;
 const SIGUNGU = /^[가-힣]+(?:시|군|구)$/u;
 const WHOLE_AREA = /^(?:전\s*지역|전체|전역|일대|인근)$/u;
 
-function readSido(token: string): { sido: Sido; rest: string } | null {
-  for (const [alias, sido] of ALIAS_LIST) {
-    if (token.startsWith(alias)) return { sido, rest: token.slice(alias.length) };
+function readSido(token: string): { sidos: readonly Sido[]; rest: string } | null {
+  for (const [alias, sidos] of ALIAS_LIST) {
+    if (token.startsWith(alias)) return { sidos, rest: token.slice(alias.length) };
   }
   return null;
 }
 
-function readPlace(segment: string): Place | null {
+function readPlaces(segment: string): readonly Place[] | null {
   const [first = '', ...tokens] = segment.split(/\s+/u);
   const head = readSido(first);
   if (!head) return null;
@@ -106,7 +118,14 @@ function readPlace(segment: string): Place | null {
   // 단독 "광주시"(경기 광주시와 광주광역시 중 어느 쪽인지 모름)가 여기서 걸러진다.
   if (head.rest && parts.length === 0 && !WHOLE_AREA.test(head.rest)) return null;
 
-  return parts.length > 0 ? { sido: head.sido, sigungu: parts.join(' ') } : { sido: head.sido };
+  const [sido, ...more] = head.sidos;
+  if (sido === undefined) return null;
+  if (parts.length === 0) return head.sidos.map((value) => ({ sido: value }));
+
+  const sigungu = parts.join(' ');
+  if (more.length === 0) return [{ sido, sigungu }];
+  // 통합 명칭 + 시·군·구: 옛 행정구역을 시·군·구 이름으로 되짚는다.
+  return [{ sido: GWANGJU_GU.has(parts[0] ?? '') ? '광주' : '전남', sigungu }];
 }
 
 function samePlace(a: Place, b: Place): boolean {
@@ -149,12 +168,14 @@ export function parseLocation(raw: string): WorkLocation {
   for (const segment of text.split(SEPARATORS)) {
     const trimmed = segment.trim();
     if (!trimmed || WHOLE_AREA.test(trimmed) || /^(?:근무|근무지|가능|병행)$/u.test(trimmed)) continue;
-    const place = readPlace(trimmed);
-    if (!place) {
+    const found = readPlaces(trimmed);
+    if (!found) {
       unparsed.push(trimmed);
       continue;
     }
-    if (!places.some((existing) => samePlace(existing, place))) places.push(place);
+    for (const place of found) {
+      if (!places.some((existing) => samePlace(existing, place))) places.push(place);
+    }
   }
 
   return { places, nationwide, remote, others, unparsed };

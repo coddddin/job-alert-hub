@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f1e8">
   <title>Job Alert Hub — 지금 지원할 공고</title>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="importmap">{"imports":{"kr-job-parser":"/vendor/kr-job-parser/index.js"}}</script>
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">{"imports":{"kr-job-parser":"./vendor/kr-job-parser/index.js"}}</script>
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">본문 바로가기</a>
   <div class="page">
     <header class="masthead">
-      <a class="brand" href="/" aria-label="Job Alert Hub 홈">JOB ALERT HUB</a>
+      <a class="brand" href="./" aria-label="Job Alert Hub 홈">JOB ALERT HUB</a>
       <p class="edition" id="edition"></p>
       <nav class="nav" aria-label="주 메뉴">
         <button class="nav-link active" data-view="feed" aria-current="page">공고</button>
@@ -45,7 +45,7 @@
           </div>
           <form id="filter-form" class="filters" aria-label="목록 필터">
             <label class="chip-select"><span class="sr-only">개발 분야</span><select name="role" id="filter-role"></select></label>
-            <label class="chip-select"><span class="sr-only">근무 지역</span><select name="region"><option value="서울">서울</option><option value="경기">경기</option><option value="all">지역 전체</option></select></label>
+            <label class="chip-select"><span class="sr-only">근무 지역</span><select name="region" id="filter-region"></select></label>
             <label class="chip-check"><input type="checkbox" name="includeUnspecified" checked> 경력무관 포함</label>
             <label class="chip-search"><span class="sr-only">검색어</span><input name="keyword" type="search" maxlength="100" placeholder="회사·공고·기술 검색"></label>
             <button type="button" class="text-button" id="reset-filters">초기화</button>
@@ -82,7 +82,7 @@
             <p class="muted">신입 지원 가능 공고 중 선택한 조건을 적용합니다.</p>
             <div class="field-row">
               <label>개발 분야<select name="role" id="alert-role"></select></label>
-              <label>근무 지역<select name="region"><option value="서울">서울</option><option value="경기">경기</option><option value="all">지역 전체</option></select></label>
+              <label>근무 지역<select name="region"></select></label>
             </div>
             <label>검색어<input name="keyword" maxlength="100" placeholder="예: React TypeScript (모두 포함)"></label>
             <label class="check"><input type="checkbox" name="includeUnspecified"> 경력무관 공고도 알림에 포함</label>

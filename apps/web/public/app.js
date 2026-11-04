@@ -1,10 +1,13 @@
-import { jobs, sampleDate } from '/data/jobs.js';
-import { defaults, matchJob, notificationCandidates } from '/lib/matching.js';
-import { initialState, sanitizeState, storageKey } from '/lib/state.js';
+import { loadJobs } from './lib/load-jobs.js';
+import { defaults, matchJob, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
+import { initialState, sanitizeState, storageKey } from './lib/state.js';
+
+const data = await loadJobs({ search: location.search });
+const { jobs, today } = data;
+const live = data.mode === 'live';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const roles = ['all', '프론트엔드', '백엔드', '풀스택', '모바일', '게임', '데이터·AI', '임베디드'];
 const statusLabel = { match: '일치', review: '확인', exclude: '제외' };
 
 let state = initialState();
@@ -15,13 +18,16 @@ let tab = 'match';
 let toastTimer;
 
 for (const select of [$('#filter-role'), $('#alert-role')]) {
-  select.innerHTML = roles.map(role => `<option value="${role}">${role === 'all' ? '분야 전체' : role}</option>`).join('');
+  select.innerHTML = ROLES.map(role => `<option value="${role}">${role === 'all' ? '분야 전체' : role}</option>`).join('');
+}
+for (const select of document.querySelectorAll('select[name="region"]')) {
+  select.innerHTML = REGIONS.map(region => `<option value="${region}">${region === 'all' ? '지역 전체' : region}</option>`).join('');
 }
 
 // ---------- 표시용 계산 ----------
 const DAY = 86_400_000;
 const toTime = iso => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
-function daysLeft(job) { return job.deadline ? Math.round((toTime(job.deadline) - toTime(sampleDate)) / DAY) : null; }
+function daysLeft(job) { return job.deadline ? Math.round((toTime(job.deadline) - toTime(today)) / DAY) : null; }
 function ddayLabel(job) {
   const days = daysLeft(job);
   if (days === null) return job.deadlineKind === 'unknown' ? '?' : '상시';
@@ -76,7 +82,9 @@ function render() {
   const soon = scoped.filter(x => x.result.status === 'match' && daysLeft(x.job) !== null && daysLeft(x.job) <= 7).length;
   const rate = parseRate();
 
-  $('#edition').textContent = `${koreanDate(sampleDate)} · 샘플 공고 ${jobs.length}건 (가상 데이터)`;
+  $('#edition').textContent = live
+    ? `${koreanDate(today)} · 공공기관 공고 ${jobs.length}건 · 잡알리오 실데이터`
+    : `${koreanDate(today)} · 샘플 공고 ${jobs.length}건 (가상 데이터)`;
   $('#feed-title').textContent = view === 'saved' ? `스크랩한 공고 ${scoped.length}건` : `공고 ${jobs.length}건 중, 지금 지원할 ${match}건`;
   $('#feed-subtitle').textContent = view === 'saved'
     ? '스크랩한 공고에 현재 목록 필터를 적용했어요. 공고를 눌러 지원 상태를 기록해 보세요.'
@@ -96,8 +104,10 @@ function render() {
   $('#job-list').innerHTML = visible.length
     ? visible.map(x => row(x.job, x.result)).join('')
     : `<tr class="empty"><td colspan="6">${view === 'saved' ? '이 탭에 해당하는 스크랩 공고가 없어요.' : '이 탭에 해당하는 공고가 없어요. 필터를 바꿔 보세요.'}</td></tr>`;
-  $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석 성공률은 샘플 ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 기준입니다.`;
-  $('#colophon-note').textContent = '샘플 기준일 ' + sampleDate + ' · 실제 공고 아님';
+  $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석 성공률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 기준입니다.`;
+  $('#colophon-note').textContent = live
+    ? `출처: ${data.sources.map(source => source.label).join(', ')} · 수집 ${new Date(data.collectedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+    : `샘플 기준일 ${today} · 실제 공고 아님`;
 }
 
 // ---------- 상태와 이벤트 ----------
@@ -175,7 +185,7 @@ $('#job-list').addEventListener('click', event => {
   const detail = event.target.closest('[data-detail]');
   if (!detail) return;
   const job = jobs.find(value => value.id === detail.dataset.detail);
-  $('#dialog-content').innerHTML = `<span class="eyebrow">FICTIONAL JOB · 샘플 공고</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${escape(describeLocation(job.parsed.location))} · ${escape(job.employment)}</p><p>${escape(job.description)}</p>${parsedTable(job)}<p class="muted small">${escape(matchJob(job, state.filters).reason)} · 기술 일치는 지원 자격 충족을 보장하지 않아요.</p><label>내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label>`;
+  $('#dialog-content').innerHTML = `<span class="eyebrow">${live ? escape(job.source) + ' · 실제 공고' : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${escape(describeLocation(job.parsed.location))} · ${escape(job.employment)}</p><p>${escape(job.description)}</p>${job.url ? `<p><a class="source-link" href="${escape(job.url)}" target="_blank" rel="noopener noreferrer">원문 공고 보기 ↗</a></p>` : ''}${parsedTable(job)}<p class="muted small">${escape(matchJob(job, state.filters).reason)} · 기술 일치는 지원 자격 충족을 보장하지 않아요.</p><label>내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label>`;
   $('#application-status').addEventListener('change', event => { state.applications[job.id] = event.target.value; persist(); render(); });
   $('#job-dialog').showModal();
 });

@@ -161,3 +161,6 @@ dialog select { border: 1px solid var(--line); background: var(--paper); padding
   .jobs tr.review { background: var(--amber-bg); }
   .alert-layout { grid-template-columns: 1fr; }
 }
+
+.source-link { color: var(--accent); font-weight: 600; text-decoration: none; border-bottom: 1px solid currentColor; }
+.source-link:hover, .source-link:focus-visible { color: var(--ink); }

@@ -66,6 +66,8 @@ function parseToday(today: IsoDate): CalendarDate {
 }
 
 const FULL_DATE = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/u;
+/** 구분자 없는 `YYYYMMDD`. 공공데이터 API가 이 형식을 쓴다. */
+const COMPACT_DATE = /(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/u;
 const SHORT_YEAR_DATE = /(?<!\d)(\d{2})\.(\d{1,2})\.(\d{1,2})(?!\d)/u;
 const MONTH_DAY = /(?<![\d:])(\d{1,2})\s*[./월]\s*(\d{1,2})(?![\d:])/u;
 const TIME = /(\d{1,2}):(\d{2})/u;
@@ -91,6 +93,9 @@ function readDate(text: string, today: CalendarDate): CalendarDate | null {
 
   const full = FULL_DATE.exec(text);
   if (full) return { year: Number(full[1]), month: Number(full[2]), day: Number(full[3]) };
+
+  const compact = COMPACT_DATE.exec(text);
+  if (compact) return { year: Number(compact[1]), month: Number(compact[2]), day: Number(compact[3]) };
 
   const short = SHORT_YEAR_DATE.exec(text);
   if (short) return { year: 2000 + Number(short[1]), month: Number(short[2]), day: Number(short[3]) };
