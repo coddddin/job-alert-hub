@@ -2,6 +2,12 @@
 
 이 파일은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식을 따르고, 버전은 [유의적 버전](https://semver.org/lang/ko/)을 따릅니다.
 
+## [0.4.1] - 2026-11-05
+
+### Fixed
+
+- `parseLocation`: 단위 없는 `외 1`(잡코리아 목록 표기)을 숨은 근무지 수로 읽습니다. 이전에는 `others: 0`이 되어 `matchesRegion`이 `'unknown'` 대신 `'no'`를 돌려줄 수 있었습니다. `외 1명`처럼 숫자 뒤에 다른 말이 붙으면 여전히 근무지 수로 보지 않습니다.
+
 ## [0.4.0] - 2026-11-05
 
 ### Added

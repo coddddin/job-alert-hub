@@ -79,13 +79,14 @@ export interface WorkLocation {
   /** `전국` 표기가 있었는지. */
   readonly nationwide: boolean;
   readonly remote: Remote;
-  /** `외 2곳`처럼 목록에 없는 근무지 수. `외 다수`처럼 수를 알 수 없으면 `'unknown'`. */
+  /** `외 2곳`·`외 1`처럼 목록에 없는 근무지 수. `외 다수`처럼 수를 알 수 없으면 `'unknown'`. */
   readonly others: number | 'unknown';
   /** 근무지로 인식하지 못한 조각. 규칙을 보강할 근거로 남긴다. */
   readonly unparsed: readonly string[];
 }
 
-const OTHERS_COUNT = /외\s*(\d+)\s*(?:곳|개\s*지역|개소|개|지역)/u;
+// 단위가 없는 `외 1`(잡코리아 목록 표기)도 받는다. 단위 없이 숫자 뒤에 다른 글자가 붙은 `외 1명` 같은 경우는 제외한다.
+const OTHERS_COUNT = /외\s*(\d+)(?:\s*(?:곳|개\s*지역|개소|개|지역)|(?=\s*(?:$|[,·/|)\]])))/u;
 const OTHERS_MANY = /외\s*(?:다수|여러\s*곳)/u;
 const REMOTE_PARTIAL = /재택(?:\s*근무)?\s*(?:병행|가능|혼합)|부분\s*재택|하이브리드|hybrid|주\s*\d\s*회\s*재택/iu;
 const REMOTE_FULL = /재택|원격\s*근무|리모트|remote/iu;

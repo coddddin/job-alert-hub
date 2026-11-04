@@ -20,6 +20,10 @@ export const routes = new Map([
   ['/lib/state.js', ['lib/state.js', js]],
   ['/data/jobs.js', ['data/jobs.js', js]],
   ['/lib/load-jobs.js', ['lib/load-jobs.js', js]],
+  ['/lib/calendar.js', ['lib/calendar.js', js]],
+  ['/lib/site-links.js', ['lib/site-links.js', js]],
+  // `pnpm build`가 만드는 북마클릿. 없으면 404이고 웹은 설치 버튼만 숨긴다.
+  ['/lib/bookmarklet.js', ['dist/bookmarklet.js', js]],
   // 수집기(apps/collector)가 만든 실데이터. 아직 수집하지 않았으면 404를 돌려 샘플로 넘어간다.
   ['/data/live/snapshot.json', ['data/live/snapshot.json', 'application/json; charset=utf-8']],
   ['/data/live/report.json', ['data/live/report.json', 'application/json; charset=utf-8']],
@@ -32,7 +36,7 @@ for (const file of ['index', 'experience', 'location', 'deadline', 'normalize', 
 const html = readFileSync(path.join(root, 'public/index.html'), 'utf8');
 const importMap = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
 const importMapHash = createHash('sha256').update(importMap).digest('base64');
-export const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
+export const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src https://www.jobkorea.co.kr; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
 
 export function createServer() {
   return http.createServer(async (req, res) => {

@@ -87,12 +87,20 @@ describe('parseLocation', () => {
       ['서울 외2곳', 2],
       ['부산 외 3개 지역', 3],
       ['대전 외 1개소', 1],
+      // 잡코리아 검색 목록은 단위 없이 "외 1"로 쓴다.
+      ['서울 구로구 외 1', 1],
+      ['충남 외 2', 2],
+      ['서울 외 1, 재택 병행', 1],
     ] as const)('%s → %d', (raw, count) => {
       expect(parseLocation(raw).others).toBe(count);
     });
 
     it('수를 알 수 없는 경우', () => {
       expect(parseLocation('서울 외 다수').others).toBe('unknown');
+    });
+
+    it('단위 없이 다른 말이 이어지면 근무지 수로 보지 않는다', () => {
+      expect(parseLocation('서울 외 1명').others).toBe(0);
     });
 
     it('표기가 없으면 0', () => {

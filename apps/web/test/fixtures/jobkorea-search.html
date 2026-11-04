@@ -1,0 +1,54 @@
+<!doctype html>
+<!--
+  2026-11 잡코리아 채용 검색 화면의 마크업 구조만 본뜬 가짜 화면이다.
+  회사명·제목은 지어낸 것이고, 경력·근무지·마감 표기 형식은 실제 화면에서 본 형식을 따랐다.
+  잡코리아가 화면 구조를 바꾸면 이 파일과 bookmarklet/cards.js를 함께 고친다.
+-->
+<html lang="ko"><body>
+<header><a href="/">JOBKOREA</a></header>
+<main>
+  <div class="list">
+    <!-- 검색 결과 카드: 로고·제목·회사명이 모두 같은 공고 링크 -->
+    <div><div class="w-full rounded-2xl" style="cursor:pointer"><div class="flex flex-col"><div class="flex w-full gap-5 p-7">
+      <a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000001?Oem_Code=C1&amp;listno=1"><div><img alt="예시랩 로고" src="logo.png"></div></a>
+      <div class="w-full">
+        <div><span class="text-pink">신입 지원 가능</span><button type="button"><i class="icon"></i><span class="sr-only">스크랩</span></button></div>
+        <div class="mb-0.5"><a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000001?Oem_Code=C1&amp;listno=1"><span class="truncate">[신입/경력] 예시 플랫폼 백엔드 개발자 채용</span></a></div>
+        <span><a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000001?Oem_Code=C1&amp;listno=1"><span>㈜예시랩</span><span></span></a></span>
+        <div><div><div><div><span class="emoji--basicemoji-place2"></span></div><span class="truncate">서울 금천구</span></div>
+          <div><div><span class="emoji--basicemoji-briefcase"></span></div><span class="truncate">솔루션·SI·CRM·ERP, 백엔드개발자</span></div></div>
+          <div><button type="button">즉시 지원</button></div></div>
+        <div><div><span>신입·경력1년↑</span></div><div><span>9시간 전 등록</span><span>•</span><span>12/04(금) 마감</span></div></div>
+      </div>
+    </div></div></div></div>
+
+    <div><div class="w-full rounded-2xl"><div class="flex flex-col"><div class="flex w-full gap-5 p-7">
+      <a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000002?Oem_Code=C1&amp;listno=2"><div></div></a>
+      <div class="w-full">
+        <div><span>재택/원격근무 가능</span></div>
+        <div><a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000002?Oem_Code=C1&amp;listno=2"><span>[재택근무] 예시 튜터 모집 (풀스택)</span></a></div>
+        <span><a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000002?Oem_Code=C1&amp;listno=2"><span>서울교육㈜</span></a></span>
+        <div><div><div><div><span class="emoji--basicemoji-place2"></span></div><span>서울 구로구 외 1</span></div></div></div>
+        <div><div><span>경력무관</span><span>•</span><span>재택근무</span></div><div><span>9시간 전 등록</span><span>•</span><span>상시채용</span></div></div>
+      </div>
+    </div></div></div></div>
+
+    <div><div class="w-full rounded-2xl"><div class="flex flex-col"><div class="flex w-full gap-5 p-7">
+      <div class="w-full">
+        <div><a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000003?Oem_Code=C1&amp;listno=3"><span>예시 SM 시니어 개발자</span></a></div>
+        <span><a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000003?Oem_Code=C1&amp;listno=3"><span>㈜샘플정보</span></a></span>
+        <div><div><div><div><span class="emoji--basicemoji-place2"></span></div><span>서울 종로구</span></div></div></div>
+        <div><div><span>경력6년↑</span></div><div><span>8시간 전 등록</span><span>•</span><span>오늘마감</span></div></div>
+      </div>
+    </div></div></div></div>
+  </div>
+
+  <!-- 인기 공고 위젯 카드: 회사 링크(Co_Read)와 공고 링크가 따로 있고 아이콘이 없다 -->
+  <div class="grid grid-cols-2">
+    <div><div class="rounded-lg border"><div><div class="flex flex-col">
+      <div><a href="https://www.jobkorea.co.kr/Recruit/Co_Read/C/1"><span>부산물류㈜</span></a><button type="button"><span class="sr-only">좋아요</span></button></div>
+      <a href="https://www.jobkorea.co.kr/Recruit/GI_Read/10000004?Oem_Code=C1&amp;sc=559"><span>[예시]물류 시스템 운영</span></a>
+    </div><div><div><span>경력무관</span><span>학력무관</span><span>정규직</span><span>부산</span><span>상시채용</span></div></div></div></div></div>
+  </div>
+</main>
+</body></html>
