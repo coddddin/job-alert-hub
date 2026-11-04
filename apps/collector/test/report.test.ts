@@ -54,13 +54,13 @@ describe('buildReport', () => {
 });
 
 describe('toMarkdown', () => {
-  it('성공률 표와 실패 원문 표를 만든다', () => {
+  it('해석률 표와 실패 원문 표를 만든다', () => {
     const markdown = toMarkdown(buildReport([...jobs, job('5', { experience: '신입', location: 'A|B', deadline: '상시' })], '2026-11-03'), '2026-11-03T00:00:00.000Z');
     expect(markdown).toContain('| 경력 | 3 / 5 | 60.0% |');
     expect(markdown).toContain('`A\\|B`');
   });
 
-  it('공고가 없으면 성공률 대신 -를 쓰고 실패 표를 생략한다', () => {
+  it('공고가 없으면 해석률 대신 -를 쓰고 실패 표를 생략한다', () => {
     const markdown = toMarkdown(buildReport([], '2026-11-03'), 'now');
     expect(markdown).toContain('| 경력 | 0 / 0 | - |');
     expect(markdown).not.toContain('해석하지 못한 원문');
