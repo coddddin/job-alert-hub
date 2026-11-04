@@ -118,20 +118,14 @@ h1 { font-family: var(--serif); font-weight: 900; font-size: 40px; letter-spacin
 .button.primary { background: var(--ink); color: var(--paper); }
 
 /* Dialog */
-dialog { border: 1px solid var(--line); background: var(--card); padding: 32px; width: min(640px, calc(100vw - 32px)); color: var(--ink); }
+/* 내용은 스크롤되고 지원 버튼은 아래에 고정. 닫기는 오른쪽 위 × */
+dialog { position: fixed; border: 1px solid var(--line); background: var(--card); padding: 0; width: min(640px, calc(100vw - 32px)); max-height: min(86vh, 860px); color: var(--ink); }
+dialog[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: rgb(31 27 22 / .35); }
-dialog h2 { font-family: var(--serif); font-size: 26px; margin: 6px 0 8px; }
+dialog h2 { font-family: var(--serif); font-size: 26px; margin: 6px 0 8px; padding-right: 32px; }
 .eyebrow { font-size: 11px; letter-spacing: .15em; font-weight: 700; color: var(--mute); }
-.parse-table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }
-.parse-table caption { text-align: left; font-size: 12px; color: var(--mute); margin-bottom: 8px; }
-.parse-table th, .parse-table td { border-bottom: 1px solid var(--line); padding: 9px 6px; text-align: left; }
-.parse-table thead th { font-size: 11px; color: var(--mute); border-bottom-color: var(--ink); }
-.parse-table tbody th { white-space: nowrap; }
-.parse-table td:nth-child(2) { font-family: var(--serif); color: var(--mute); }
-.parse-table td.unknown { color: var(--amber); font-weight: 700; }
 dialog label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; margin: 14px 0; }
 dialog select { border: 1px solid var(--line); background: var(--paper); padding: 10px 12px; border-radius: 4px; }
-#close-dialog { width: 100%; margin-top: 8px; }
 
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 12px 18px; border-radius: 4px; font-size: 14px; }
 .colophon { display: flex; justify-content: space-between; margin-top: 48px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; letter-spacing: .1em; color: var(--mute); }
@@ -162,5 +156,47 @@ dialog select { border: 1px solid var(--line); background: var(--paper); padding
   .alert-layout { grid-template-columns: 1fr; }
 }
 
-.source-link { color: var(--accent); font-weight: 600; text-decoration: none; border-bottom: 1px solid currentColor; }
-.source-link:hover, .source-link:focus-visible { color: var(--ink); }
+
+/* ---------- 지원하기 ---------- */
+.apply { display: grid; gap: 8px; }
+.apply-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 0 20px; background: var(--accent); color: #fff; font-size: 18px; font-weight: 700; text-decoration: none; border-radius: 6px; letter-spacing: -.01em; transition: background .15s, transform .15s; }
+.apply-button:hover { background: #a2360a; }
+.apply-button:active { transform: translateY(1px); }
+.apply-button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.apply-button[aria-disabled="true"] { background: var(--line); color: var(--mute); cursor: not-allowed; }
+.apply-meta { margin: 0; font-size: 13px; color: var(--mute); text-align: center; }
+.apply-meta strong { color: var(--accent); }
+.apply-meta a { color: inherit; }
+.apply.urgent .apply-meta strong::after { content: ' 곧 마감'; font-weight: 600; }
+
+dialog #dialog-content { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+dialog .dialog-scroll { overflow: auto; padding: 32px 32px 8px; }
+dialog .apply { margin: 0; padding: 14px 32px 18px; border-top: 1px solid var(--line); background: var(--card); grid-template-columns: 1fr auto; align-items: center; }
+dialog .apply-meta { grid-row: 1; text-align: left; font-size: 14px; }
+dialog .apply-button { grid-column: 2; min-width: 240px; }
+@media (max-width: 600px) {
+  dialog { width: 100vw; max-width: 100vw; max-height: 92vh; margin: auto 0 0; border-radius: 14px 14px 0 0; }
+  dialog .dialog-scroll { padding: 24px 20px 8px; }
+  dialog .apply { grid-template-columns: 1fr; padding: 12px 20px max(16px, env(safe-area-inset-bottom)); }
+  dialog .apply-meta { grid-row: auto; text-align: center; }
+  dialog .apply-button { grid-column: auto; min-width: 0; }
+}
+
+/* 원문 표기는 기본으로 숨긴다. 해석하지 못한 칸(.keep)과 개발용 ?raw에서만 보인다. */
+.jobs .raw { display: none; }
+.jobs .raw.keep, .show-raw .jobs .raw { display: block; margin-top: 2px; }
+.facts { margin: 18px 0; display: grid; gap: 0; }
+.facts > div { display: grid; grid-template-columns: 72px 1fr; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.facts > div:first-child { border-top: 1px solid var(--ink); }
+.facts dt { font-size: 13px; font-weight: 700; color: var(--mute); }
+.facts dd { margin: 0; font-size: 15px; }
+.facts dd.unknown { color: var(--amber); font-weight: 700; }
+.facts small { display: block; font-weight: 400; color: var(--mute); font-size: 12px; margin-top: 2px; }
+.facts .raw-inline { display: inline; font-family: var(--serif); }
+
+.dialog-close { position: absolute; top: 12px; right: 12px; z-index: 1; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; font-size: 26px; line-height: 1; color: var(--mute); }
+.dialog-close:hover { background: var(--paper); color: var(--ink); }
+.dialog-close:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* 한국어는 어절 단위로 줄을 바꾼다 ("채용 공\n고" 방지) */
+h1, h2, .job-title, .facts dd { word-break: keep-all; overflow-wrap: anywhere; }
