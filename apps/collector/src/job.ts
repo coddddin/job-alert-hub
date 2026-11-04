@@ -10,8 +10,10 @@ export interface CollectedJob {
   readonly source: string;
   readonly company: string;
   readonly title: string;
-  /** 원문 공고 주소. 없으면 `null`. */
+  /** 기관의 채용 페이지 주소. 없으면 `null`. */
   readonly url: string | null;
+  /** 지원하기 버튼이 여는 공고 상세 주소(공고문·접수 안내가 있는 곳). 없으면 `null`. */
+  readonly applyUrl: string | null;
   readonly raw: {
     readonly experience: string;
     readonly location: string;

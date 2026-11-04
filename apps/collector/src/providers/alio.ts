@@ -10,6 +10,8 @@ const PAGE_SIZE = 100;
 /** 전체 수가 비정상적으로 커도 무한히 요청하지 않도록 막는 상한. */
 const MAX_PAGES = 20;
 const TIMEOUT_MS = 20_000;
+/** 잡알리오 공고 상세. 공고문 첨부와 접수 방법이 모두 여기에 있다. */
+const DETAIL_URL = 'https://job.alio.go.kr/recruitview.do?idx=';
 
 /** 응답 항목 중 수집에 쓰는 필드만. 나머지 필드는 읽지 않는다. */
 export interface AlioItem {
@@ -96,12 +98,14 @@ export function toJob(item: AlioItem): CollectedJob {
     company: item.instNm,
     title: item.recrutPbancTtl,
     url: url === '' ? null : url,
+    applyUrl: `${DETAIL_URL}${String(item.recrutPblntSn)}`,
     raw: { experience: item.recrutSeNm, location: item.workRgnNmLst, deadline: item.pbancEndYmd },
     kind: isIt ? 'development' : 'other',
     role: isIt ? '전산·IT' : (fields[0] ?? '기타'),
     employment,
     tags: fields,
-    description: `채용 ${String(item.recrutNope)}명 · 학력 ${education}${replacement}`,
+    // `학력무관` 하나뿐이면 `학력 학력무관`이 되지 않게 그대로 쓴다.
+    description: `채용 ${String(item.recrutNope)}명 · ${education === '학력무관' ? education : `학력 ${education}`}${replacement}`,
   };
 }
 

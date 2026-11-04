@@ -10,6 +10,7 @@ const job = (id: string, raw: CollectedJob['raw']): CollectedJob => ({
   company: '회사',
   title: '공고',
   url: null,
+  applyUrl: null,
   raw,
   kind: 'other',
   role: '기타',
