@@ -21,22 +21,23 @@ jobs:
       matrix:
         node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # 앱(collector)은 워크스페이스 패키지의 빌드된 타입(dist/*.d.ts)을 읽으므로 빌드를 먼저 한다.
+      - name: Build
+        run: pnpm build
       - name: Lint
         run: pnpm lint
       - name: Typecheck
         run: pnpm typecheck
-      - name: Build
-        run: pnpm build
-      - name: Test (web + kr-job-parser)
+      - name: Test
         run: pnpm test
-      - name: Coverage (kr-job-parser)
+      - name: Coverage
         run: pnpm -r run test:coverage
-      - name: Package exports (publint, attw)
+      - name: Package checks
         run: pnpm -r run check:package
