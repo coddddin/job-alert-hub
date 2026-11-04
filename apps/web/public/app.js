@@ -176,12 +176,37 @@ function applyBlock(job) {
     <p class="apply-meta">${when}${secondary ? ` · <a href="${escape(secondary)}" target="_blank" rel="noopener noreferrer">기관 채용 페이지</a>` : ''}</p>
   </div>`;
 }
+function factRow(label, value, { raw = null, note = '' } = {}) {
+  if (!value) return '';
+  const unknown = value === UNKNOWN;
+  const body = unknown
+    ? `확인 필요 <small>공고 표기 “${escape(raw)}”를 해석하지 못했어요</small>`
+    : `${escape(value)}${note ? `<small>${escape(note)}</small>` : ''}${raw && showRaw ? ` <small class="raw-inline">“${escape(raw)}”</small>` : ''}`;
+  return `<div><dt>${label}</dt><dd${unknown ? ' class="unknown"' : ''}>${body}</dd></div>`;
+}
+/** 지원 전에 확인할 조건: 경력·학력·근무지·마감·인원·고용 형태, 그리고 지원 자격 원문 */
 function facts(job) {
-  const rows = [['경력', job.raw.experience, describeExperience(job.parsed.experience)], ['근무지', job.raw.location, describeLocation(job.parsed.location)], ['마감', job.raw.deadline, describeDeadline(job.parsed.deadline)], ['모집', null, job.description]];
-  return `<dl class="facts">${rows.filter(([, , value]) => value).map(([label, raw, value]) => {
-    const unknown = value === UNKNOWN;
-    return `<div><dt>${label}</dt><dd${unknown ? ' class="unknown"' : ''}>${unknown ? `확인 필요 <small>공고 표기 “${escape(raw)}”를 해석하지 못했어요</small>` : escape(value)}${!unknown && raw && showRaw ? ` <small class="raw-inline">“${escape(raw)}”</small>` : ''}</dd></div>`;
-  }).join('')}</dl>`;
+  const d = job.details;
+  const rows = [
+    factRow('경력', describeExperience(job.parsed.experience), { raw: job.raw.experience }),
+    d ? factRow('학력', d.minimumEducation ?? d.education.join(' · '), { note: d.education.length > 1 ? `분야별: ${d.education.join(' · ')}` : '' }) : '',
+    factRow('근무지', describeLocation(job.parsed.location), { raw: job.raw.location }),
+    factRow('마감', describeDeadline(job.parsed.deadline), { raw: job.raw.deadline }),
+    d ? factRow('채용 인원', d.headcount ? `${d.headcount}명` : '') : '',
+    factRow('고용 형태', job.employment),
+    d ? factRow('우대', d.preferences) : factRow('모집', job.description),
+  ];
+  return `<dl class="facts">${rows.join('')}</dl>${requirements(d)}`;
+}
+const PREVIEW_LINES = 6;
+/** "일반요건", "필수요건", "채용분야 응시자격"처럼 짧고 요건·자격으로 끝나는 줄은 소제목으로 본다. */
+const SECTION = /^[^.,]{0,12}(?:요건|자격|사항|조건)$/;
+function requirements(details) {
+  const lines = details?.requirements ?? [];
+  if (!lines.length) return '';
+  const render = list => list.map(line => SECTION.test(line) ? `<li class="req-section">${escape(line)}</li>` : `<li>${escape(line)}</li>`).join('');
+  const rest = lines.slice(PREVIEW_LINES);
+  return `<section class="requirements" aria-labelledby="req-title"><h3 id="req-title">지원 자격</h3><ul>${render(lines.slice(0, PREVIEW_LINES))}</ul>${rest.length ? `<details><summary>${rest.length}줄 더 보기</summary><ul>${render(rest)}</ul></details>` : ''}<p class="muted small">공고 원문 그대로예요. 세부 조건은 지원하기에서 공고문을 확인하세요.</p></section>`;
 }
 
 fillForm($('#filter-form'), state.filters);

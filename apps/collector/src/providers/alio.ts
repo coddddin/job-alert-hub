@@ -1,4 +1,4 @@
-import type { CollectedJob } from '../job.js';
+import type { CollectedJob, JobDetails } from '../job.js';
 import { ProviderError, type FetchLike, type Provider, type ProviderResult } from './provider.js';
 
 /**
@@ -32,6 +32,10 @@ export interface AlioItem {
   readonly recrutNope: number;
   /** 대체인력 채용 여부 */
   readonly replmprYn: string;
+  /** 지원 자격. 줄바꿈(`\r\n`)과 글머리표가 섞인 자유 형식. */
+  readonly aplyQlfcCn?: string | null;
+  /** 우대 조건 요약. 없으면 `해당사항 없음`. */
+  readonly prefCondCn?: string | null;
 }
 
 interface AlioPage {
@@ -47,11 +51,15 @@ const isObject = (value: unknown): value is Json => typeof value === 'object' &&
 
 const STRING_FIELDS = ['instNm', 'recrutPbancTtl', 'recrutSeNm', 'workRgnNmLst', 'pbancEndYmd', 'ncsCdNmLst', 'hireTypeNmLst', 'acbgCondNmLst', 'replmprYn'] as const;
 
+const OPTIONAL_STRING_FIELDS = ['aplyQlfcCn', 'prefCondCn'] as const;
+
 /** 외부 응답은 타입을 믿을 수 없으므로 런타임에 확인한다. `as`로 단언하지 않는다. */
 export function isAlioItem(value: unknown): value is AlioItem {
   if (!isObject(value)) return false;
   if (typeof value['recrutPblntSn'] !== 'number' || typeof value['recrutNope'] !== 'number') return false;
   if (value['srcUrl'] !== null && typeof value['srcUrl'] !== 'string') return false;
+  // 자격·우대 요건은 없을 수도 있지만, 있으면 문자열이어야 한다.
+  if (!OPTIONAL_STRING_FIELDS.every((key) => value[key] === undefined || value[key] === null || typeof value[key] === 'string')) return false;
   return STRING_FIELDS.every((key) => typeof value[key] === 'string');
 }
 
@@ -83,6 +91,46 @@ const splitList = (value: string): string[] =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+/** 낮은 순서. 목록에 없는 표기는 최소 학력 계산에서 뺀다. */
+const EDUCATION_ORDER = ['학력무관', '중졸이하', '고졸', '대졸(2~3년)', '대졸(4년)', '석사', '박사'] as const;
+
+export function minimumEducation(levels: readonly string[]): string | null {
+  const ranks = levels.map((level) => EDUCATION_ORDER.findIndex((known) => known === level)).filter((rank) => rank >= 0);
+  if (ranks.length === 0) return null;
+  const lowest = EDUCATION_ORDER[Math.min(...ranks)];
+  if (lowest === undefined) return null;
+  return lowest === '학력무관' ? lowest : `${lowest} 이상`;
+}
+
+const NONE = /^(?:해당\s*사항\s*없음|없음|-)$/u;
+/** 줄 앞 글머리표: □ ㅇ ○ ◦ • · ㆍ - * 와 "1." 같은 번호 */
+const BULLET = /^(?:[□■ㅇ○◦•·ㆍ\-*▶]|\d+[.)])\s*/u;
+const MAX_LINES = 20;
+const MAX_LINE_LENGTH = 300;
+
+/** 자유 형식 자격 요건을 줄 목록으로. 내용은 바꾸지 않고 글머리표와 빈 줄만 정리한다. */
+export function splitLines(text: string | null | undefined): string[] {
+  if (!text || NONE.test(text.trim())) return [];
+  return text
+    .split(/\r?\n/u)
+    .map((line) => line.trim().replace(BULLET, '').trim())
+    .filter((line) => line.length > 0)
+    .slice(0, MAX_LINES)
+    .map((line) => (line.length > MAX_LINE_LENGTH ? `${line.slice(0, MAX_LINE_LENGTH)}…` : line));
+}
+
+function details(item: AlioItem): JobDetails {
+  const education = splitList(item.acbgCondNmLst);
+  const preferences = item.prefCondCn?.trim() ?? '';
+  return {
+    headcount: item.recrutNope > 0 ? item.recrutNope : null,
+    education,
+    minimumEducation: minimumEducation(education),
+    requirements: splitLines(item.aplyQlfcCn),
+    preferences: preferences === '' || NONE.test(preferences) ? null : preferences,
+  };
+}
+
 /** 응답 한 건을 공통 형식으로 바꾼다. 경력·근무지·마감은 해석하지 않고 원문 그대로 넘긴다. */
 export function toJob(item: AlioItem): CollectedJob {
   const fields = splitList(item.ncsCdNmLst);
@@ -105,7 +153,8 @@ export function toJob(item: AlioItem): CollectedJob {
     employment,
     tags: fields,
     // `학력무관` 하나뿐이면 `학력 학력무관`이 되지 않게 그대로 쓴다.
-    description: `채용 ${String(item.recrutNope)}명 · ${education === '학력무관' ? education : `학력 ${education}`}${replacement}`,
+    details: details(item),
+    description: `${item.recrutNope > 0 ? `채용 ${String(item.recrutNope)}명 · ` : ''}${education === '학력무관' ? education : `학력 ${education}`}${replacement}`,
   };
 }
 

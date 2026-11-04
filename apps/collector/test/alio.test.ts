@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { alio, isAlioItem, toJob, type AlioItem } from '../src/providers/alio.js';
+import { alio, isAlioItem, minimumEducation, splitLines, toJob, type AlioItem } from '../src/providers/alio.js';
 import { ProviderError, type FetchLike } from '../src/providers/provider.js';
 
 /** 2026-11-03 실제 응답의 앞 5건. 긴 본문 필드는 잘라 두었다. */
@@ -19,6 +19,8 @@ const item: AlioItem = {
   acbgCondNmLst: '학력무관',
   recrutNope: 3,
   replmprYn: 'N',
+  aplyQlfcCn: 'ㅇ일반요건\r\n- 병역을 필하였거나 면제된 자\r\n\r\n□ 정보처리기사 소지자',
+  prefCondCn: '해당사항 없음',
 };
 
 const json = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -48,6 +50,7 @@ describe('isAlioItem', () => {
     ['ID가 문자열', { ...item, recrutPblntSn: '1' }],
     ['필수 문자열 누락', { ...item, workRgnNmLst: undefined }],
     ['srcUrl이 숫자', { ...item, srcUrl: 3 }],
+    ['자격 요건이 숫자', { ...item, aplyQlfcCn: 1 }],
   ])('형식이 다르면 거른다: %s', (_, value) => {
     expect(isAlioItem(value)).toBe(false);
   });
@@ -72,6 +75,13 @@ describe('toJob', () => {
       employment: '정규직',
       tags: ['경영.회계.사무', '정보통신'],
       description: '채용 3명 · 학력무관',
+      details: {
+        headcount: 3,
+        education: ['학력무관'],
+        minimumEducation: '학력무관',
+        requirements: ['일반요건', '병역을 필하였거나 면제된 자', '정보처리기사 소지자'],
+        preferences: null,
+      },
     });
   });
 
@@ -85,12 +95,48 @@ describe('toJob', () => {
     expect(job.role).toBe('건설');
   });
 
+  it('우대 조건이 있으면 남긴다', () => {
+    expect(toJob({ ...item, prefCondCn: ' 취업지원대상자 ' }).details?.preferences).toBe('취업지원대상자');
+  });
+
   it('빈 값과 대체인력을 표시한다', () => {
-    const job = toJob({ ...item, srcUrl: '  ', ncsCdNmLst: '', hireTypeNmLst: '', acbgCondNmLst: '', replmprYn: 'Y' });
+    const withoutPreferences: AlioItem = { ...item };
+    delete (withoutPreferences as { prefCondCn?: string | null }).prefCondCn;
+    const job = toJob({ ...withoutPreferences, srcUrl: '  ', ncsCdNmLst: '', hireTypeNmLst: '', acbgCondNmLst: '', replmprYn: 'Y', recrutNope: 0, aplyQlfcCn: null });
+    expect(job.details).toEqual({ headcount: null, education: [], minimumEducation: null, requirements: [], preferences: null });
     expect(job.url).toBeNull();
     expect(job.employment).toBe('미기재');
     expect(job.role).toBe('기타');
-    expect(job.description).toBe('채용 3명 · 학력 미기재 · 대체인력');
+    expect(job.description).toBe('학력 미기재 · 대체인력');
+  });
+});
+
+describe('minimumEducation', () => {
+  it.each([
+    [['학력무관', '대졸(4년)'], '학력무관'],
+    [['대졸(4년)', '석사', '고졸'], '고졸 이상'],
+    [['박사'], '박사 이상'],
+    [['대졸(2~3년)', '알 수 없는 표기'], '대졸(2~3년) 이상'],
+    [['알 수 없는 표기'], null],
+    [[], null],
+  ] as const)('%j → %s', (levels, expected) => {
+    expect(minimumEducation(levels)).toBe(expected);
+  });
+});
+
+describe('splitLines', () => {
+  it('글머리표와 빈 줄만 정리하고 내용은 그대로 둔다', () => {
+    expect(splitLines('○ (연령) 만 18세 이상\n  ㆍ 학력 제한 없음\n1. 결격사유 없는 자\n※ 공고문 참조')).toEqual(['(연령) 만 18세 이상', '학력 제한 없음', '결격사유 없는 자', '※ 공고문 참조']);
+  });
+
+  it.each([null, undefined, '', '해당사항 없음', '해당 사항 없음', '-'])('없음: %j', (text) => {
+    expect(splitLines(text)).toEqual([]);
+  });
+
+  it('줄 수와 줄 길이를 제한한다', () => {
+    const lines = splitLines([...Array.from({ length: 30 }, (_, i) => `줄 ${String(i)}`), 'x'.repeat(400)].join('\n'));
+    expect(lines).toHaveLength(20);
+    expect(splitLines('가'.repeat(400))[0]).toHaveLength(301);
   });
 });
 
