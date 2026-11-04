@@ -1,5 +1,7 @@
 # kr-job-parser
 
+[![npm](https://img.shields.io/npm/v/kr-job-parser)](https://www.npmjs.com/package/kr-job-parser) [![CI](https://github.com/coddddin/job-alert-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/coddddin/job-alert-hub/actions/workflows/ci.yml) ![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen) ![license](https://img.shields.io/npm/l/kr-job-parser)
+
 **한국 채용공고의 제각각인 표기를 타입이 있는 구조화 데이터로 바꿉니다.**
 
 ```ts
@@ -300,6 +302,15 @@ pnpm --filter kr-job-parser lint
 pnpm --filter kr-job-parser build
 pnpm --filter kr-job-parser check:package   # publint · attw · tarball 설치 후 실행 확인
 ```
+
+## 배포
+
+`package.json`의 `version`을 올리고 [CHANGELOG](CHANGELOG.md)에 같은 버전 항목을 적어 main에 머지하면, [Release 워크플로](../../.github/workflows/release.yml)가 이어서 처리합니다.
+
+1. 그 버전이 npm에 없을 때만 진행합니다. 그래서 다시 실행해도 같은 버전을 두 번 올리지 않습니다.
+2. 빌드 → 린트 → 타입 검사 → 커버리지 → 패키지 검사(tarball 설치 후 실행)를 다시 돌립니다.
+3. npm **Trusted Publishing(OIDC)**으로 배포합니다. 저장해 둔 npm 토큰이 없고, 패키지마다 **provenance**(어느 커밋·워크플로에서 빌드됐는지에 대한 서명)가 붙습니다.
+4. `kr-job-parser@버전` 태그와, CHANGELOG 내용을 본문으로 한 GitHub Release를 만듭니다.
 
 ## 라이선스
 

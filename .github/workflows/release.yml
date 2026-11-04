@@ -1,0 +1,87 @@
+name: Release kr-job-parser
+
+# packages/kr-job-parser/package.json의 version을 올려 main에 머지하면,
+# 그 버전이 npm에 아직 없을 때만 검사 → npm 배포 → Git 태그 → GitHub Release를 만든다.
+# 인증은 npm Trusted Publishing(OIDC)이라 저장해 둔 토큰이 없다.
+# (npm은 첫 배포만 OIDC로 할 수 없어서, 그때만 NPM_TOKEN 시크릿이 있으면 그것을 쓴다.)
+on:
+  push:
+    branches: [main]
+    paths: [packages/kr-job-parser/package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-kr-job-parser
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # 태그와 GitHub Release
+      id-token: write # npm Trusted Publishing, provenance
+    defaults:
+      run:
+        working-directory: packages/kr-job-parser
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      # Trusted Publishing은 npm 11.5.1 이상이 필요하다. Node 24에 들어 있는 npm을 쓴다.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Decide
+        id: decide
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "$name@$version 은 이미 npm에 있어 건너뜁니다." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.decide.outputs.publish == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.decide.outputs.publish == 'true'
+        name: Verify (build, lint, typecheck, test, package)
+        run: |
+          pnpm build
+          pnpm lint
+          pnpm typecheck
+          pnpm test:coverage
+          pnpm check:package
+      - if: steps.decide.outputs.publish == 'true'
+        name: Release notes
+        run: node scripts/release-notes.mjs "${{ steps.decide.outputs.version }}" > "$RUNNER_TEMP/notes.md"
+
+      - if: steps.decide.outputs.publish == 'true' && env.HAS_NPM_TOKEN == 'true'
+        name: Publish (first release, token)
+        run: npm publish --provenance --access public
+        env:
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - if: steps.decide.outputs.publish == 'true' && env.HAS_NPM_TOKEN != 'true'
+        name: Publish (Trusted Publishing)
+        run: npm publish --provenance --access public
+        env:
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+
+      - if: steps.decide.outputs.publish == 'true'
+        name: Tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.decide.outputs.name }}@${{ steps.decide.outputs.version }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          echo "배포: https://www.npmjs.com/package/${{ steps.decide.outputs.name }}/v/${{ steps.decide.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"

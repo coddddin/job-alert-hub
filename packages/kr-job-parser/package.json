@@ -56,5 +56,12 @@
   },
   "bin": {
     "kr-job-parser": "./dist/cli/bin.js"
+  },
+  "homepage": "https://github.com/coddddin/job-alert-hub/tree/main/packages/kr-job-parser#readme",
+  "bugs": {
+    "url": "https://github.com/coddddin/job-alert-hub/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
