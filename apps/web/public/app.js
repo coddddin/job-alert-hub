@@ -2,6 +2,7 @@ import { loadJobs } from './lib/load-jobs.js';
 import { defaults, matchJob, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
+import { siteLinks } from './lib/site-links.js';
 
 const data = await loadJobs({ search: location.search });
 const { jobs, today } = data;
@@ -112,11 +113,20 @@ function render() {
     .sort((a, b) => (daysLeft(a.job) ?? Infinity) - (daysLeft(b.job) ?? Infinity));
   $('#job-list').innerHTML = visible.length
     ? visible.map(x => row(x.job, x.result)).join('')
-    : `<tr class="empty"><td colspan="6">${view === 'saved' ? '이 탭에 해당하는 스크랩 공고가 없어요.' : '이 탭에 해당하는 공고가 없어요. 필터를 바꿔 보세요.'}</td></tr>`;
-  $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 중 '해석 불가'가 아닌 비율이며, 정답과 맞는지(정확도)를 잰 값은 아닙니다.`;
+    : `<tr class="empty"><td colspan="6">${view === 'saved' ? '이 탭에 해당하는 스크랩 공고가 없어요.' : '이 탭에 해당하는 공고가 없어요. 필터를 바꾸거나 위 사이트에서 같은 조건으로 찾아보세요.'}</td></tr>`;
+  renderSiteLinks();
+  $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 중 '해석 불가'가 아닌 비율이며, 정답과 맞는지(정확도)를 잰 값은 아닙니다. 다른 사이트 링크는 그 사이트의 검색 주소로 이동만 시키며, ≈ 표시는 그 사이트 분류가 더 넓어 조건이 일부 넓게 걸린다는 뜻입니다(링크에 마우스를 올리면 자세히).`;
   $('#colophon-note').textContent = live
     ? `출처: ${data.sources.map(source => source.label).join(', ')} · 수집 ${new Date(data.collectedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
     : `샘플 기준일 ${today} · 실제 공고 아님`;
+}
+
+/** 다른 사이트의 공고는 가져오지 않는다. 지금 필터를 그 사이트 검색 주소로 옮겨 이동만 시킨다. */
+function renderSiteLinks() {
+  $('#site-links').innerHTML = siteLinks(state.filters).map(link => {
+    const note = link.dropped.length ? `${link.name}에서는 ${link.dropped.join(', ')}` : `${link.name}에 같은 조건을 그대로 적용`;
+    return `<li><a href="${escape(link.url)}" target="_blank" rel="noopener noreferrer" title="${escape(note)}">${escape(link.name)}<span aria-hidden="true"> ↗</span>${link.dropped.length ? '<span class="site-approx" aria-hidden="true">≈</span>' : ''}<span class="sr-only"> (새 창, ${escape(note)})</span></a></li>`;
+  }).join('');
 }
 
 // ---------- 상태와 이벤트 ----------

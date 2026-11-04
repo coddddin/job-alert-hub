@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile && pnpm build
-      - run: pnpm --filter @job-alert-hub/web build:site -- "$RUNNER_TEMP/site/job-alert-hub" || node apps/web/scripts/build-site.mjs "$RUNNER_TEMP/site/job-alert-hub"
+      - run: node apps/web/scripts/build-site.mjs "$RUNNER_TEMP/site/job-alert-hub"
       - run: npx -y playwright@1 install --with-deps chromium
       - run: |
           cd "$RUNNER_TEMP/site" && (python3 -m http.server 4321 >/dev/null 2>&1 &) && sleep 1
