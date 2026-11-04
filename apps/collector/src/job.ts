@@ -26,6 +26,21 @@ export interface CollectedJob {
   /** 직무 분류·학력처럼 검색과 상세 화면에 쓰는 짧은 꼬리표. */
   readonly tags: readonly string[];
   readonly description: string;
+  /** 지원 전에 확인할 조건. 수집처가 주지 않으면 `null`. */
+  readonly details: JobDetails | null;
+}
+
+export interface JobDetails {
+  /** 채용 인원. 모르면 `null`. */
+  readonly headcount: number | null;
+  /** 공고에 적힌 학력 조건들. 분야마다 다를 수 있어 목록이다. */
+  readonly education: readonly string[];
+  /** 그중 가장 낮은 학력. 이 이상이면 적어도 한 분야에는 지원할 수 있다. 알 수 없으면 `null`. */
+  readonly minimumEducation: string | null;
+  /** 지원 자격(필수 요건). 원문의 줄을 글머리표만 떼고 그대로 담는다. */
+  readonly requirements: readonly string[];
+  /** 우대 조건 요약. 없으면 `null`. */
+  readonly preferences: string | null;
 }
 
 /** `apps/web`이 읽는 파일 형식. */

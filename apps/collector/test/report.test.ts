@@ -17,6 +17,7 @@ const job = (id: string, raw: CollectedJob['raw']): CollectedJob => ({
   employment: '정규직',
   tags: [],
   description: '',
+  details: null,
 });
 
 const jobs = [
