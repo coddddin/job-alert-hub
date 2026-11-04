@@ -18,6 +18,7 @@
       <nav class="nav" aria-label="주 메뉴">
         <button class="nav-link active" data-view="feed" aria-current="page">공고</button>
         <button class="nav-link" data-view="saved">스크랩 <span id="saved-count">0</span></button>
+        <button class="nav-link" data-view="calendar">공채달력</button>
         <button class="nav-link accent" data-view="alerts">알림 설정 →</button>
       </nav>
     </header>
@@ -67,6 +68,23 @@
           <tbody id="job-list"></tbody>
         </table>
         <p class="footnote" id="footnote"></p>
+      </section>
+
+      <section id="calendar-view" hidden>
+        <div class="headline">
+          <div>
+            <h1>신입 공채 일정</h1>
+            <p class="lede">잡코리아가 다른 사이트에 넣어 쓰도록 제공하는 공채달력을 그대로 보여줘요. 민간 기업 공채까지 한눈에 볼 수 있어요.</p>
+          </div>
+        </div>
+        <div class="calendar-controls" role="group" aria-label="공채달력 보기 설정">
+          <div class="segmented" id="calendar-edu" role="radiogroup" aria-label="학력"></div>
+          <div class="segmented" id="calendar-period" role="radiogroup" aria-label="기간"></div>
+        </div>
+        <div class="calendar-frame">
+          <iframe id="calendar-iframe" title="잡코리아 신입 공채달력" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
+        </div>
+        <p class="muted small calendar-source">제공: <a href="https://www.jobkorea.co.kr/starter/" target="_blank" rel="noopener noreferrer">잡코리아 신입공채</a> · 이 달력의 공고는 이 사이트가 수집하거나 해석하지 않으며, 경력·근무지 판정과 알림에도 포함되지 않아요.</p>
       </section>
 
       <section id="alerts-view" hidden>

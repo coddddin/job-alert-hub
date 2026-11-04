@@ -29,6 +29,8 @@ test('import map은 CSP 해시로만 허용하고 unsafe-inline은 쓰지 않는
   const hash = createHash('sha256').update(importMap).digest('base64');
   assert.ok(csp.includes(`'sha256-${hash}'`));
   assert.ok(!csp.includes('unsafe-inline'));
+  // 외부 페이지는 잡코리아 공채달력 iframe만 허용한다.
+  assert.match(csp, /frame-src https:\/\/www\.jobkorea\.co\.kr;/);
   assert.deepEqual(JSON.parse(importMap).imports, { 'kr-job-parser': './vendor/kr-job-parser/index.js' });
 });
 

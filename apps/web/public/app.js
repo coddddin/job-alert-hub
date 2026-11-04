@@ -1,6 +1,7 @@
 import { loadJobs } from './lib/load-jobs.js';
 import { defaults, matchJob, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
+import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
 
 const data = await loadJobs({ search: location.search });
 const { jobs, today } = data;
@@ -140,16 +141,39 @@ function readForm(form) {
 }
 function switchView(next) {
   view = next;
-  $('#feed-view').hidden = next === 'alerts';
+  $('#feed-view').hidden = next === 'alerts' || next === 'calendar';
   $('#alerts-view').hidden = next !== 'alerts';
+  $('#calendar-view').hidden = next !== 'calendar';
   document.querySelectorAll('[data-view]').forEach(button => {
     const active = button.dataset.view === next;
     button.classList.toggle('active', active);
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
   if (next === 'alerts') { fillForm($('#alert-form'), state.notifications); preview(); }
+  if (next === 'calendar') showCalendar();
   render();
 }
+// ---------- 공채달력 (잡코리아 제공 iframe) ----------
+// 방문자 모두가 잡코리아 페이지를 불러오지 않도록, 탭을 처음 열 때만 주소를 넣는다.
+const calendar = { period: 'month', edu: '5' };
+function segmented(container, options, key) {
+  container.innerHTML = options.map(option => `<button type="button" role="radio" data-${key}="${option.value}" aria-checked="${calendar[key] === option.value}">${option.label}</button>`).join('');
+}
+function showCalendar() {
+  segmented($('#calendar-edu'), EDUCATION, 'edu');
+  segmented($('#calendar-period'), PERIODS, 'period');
+  const frame = $('#calendar-iframe');
+  frame.classList.toggle('week', calendar.period === 'week');
+  const src = calendarUrl(calendar);
+  if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+}
+$('#calendar-view').addEventListener('click', event => {
+  const button = event.target.closest('[data-edu], [data-period]');
+  if (!button) return;
+  if (button.dataset.edu) calendar.edu = button.dataset.edu;
+  if (button.dataset.period) calendar.period = button.dataset.period;
+  showCalendar();
+});
 function preview() {
   const form = $('#alert-form');
   const matches = notificationCandidates(jobs, readForm(form));
