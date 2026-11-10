@@ -29,3 +29,23 @@ Do not integrate directly into `apps/collector` until the approved
 source registry, policy status, normalized data contract, and failure
 handling in the discovery plan are implemented. A successful demo fetch
 does not prove live access to JobKorea or rights to reuse real listings.
+
+## JobKorea live observation (2026-11-10)
+Opt-in, one-time proof of concept added via `jobkorea_live.py`. With an
+identifiable User-Agent, no proxy rotation, no CAPTCHA bypass, and no login:
+
+- Public listing URL: **HTTP 200**, Scrapling HTML parsed, **123 distinct job
+  detail links detected** on one page. This is NOT 123 fully parsed jobs, and
+  does not indicate how many jobs are open overall.
+- One **historical closed** job detail URL: **HTTP 200**, HTML page title
+  and Open Graph title parsed successfully.
+- A fresh `robots.txt` request returned **200**, and the normal crawler
+  matcher allowed the tested paths for the configured User-Agent.
+- JobKorea robots.txt also explicitly blocks certain named scraper agents.
+  The normal-crawler matcher is NOT authorization for bulk extraction,
+  permanent storage, republication, or commercial reuse.
+- No production integration, persistence, repeated crawl schedule,
+  stealth browser, or automated bypass was added.
+
+Proof: https://github.com/coddddin/job-alert-hub/actions/runs/42771096568
+The run's outputs represent the observed runner/IP and time only.
