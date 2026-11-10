@@ -32,3 +32,6 @@ jobs:
       - name: Read-only JobKorea robots policy audit
         if: always()
         run: python tools/scrapling-probe/probe.py --target jobkorea
+      - name: One-time Scrapling JobKorea public HTML diagnostic
+        if: always()
+        run: python tools/scrapling-probe/jobkorea_live.py
