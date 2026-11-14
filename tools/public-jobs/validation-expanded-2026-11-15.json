@@ -1,0 +1,126 @@
+{
+  "scope": "40 distinct detail attempts on 2026-11-14 KST; one position card refreshed 2026-11-15 KST",
+  "attempted": 40,
+  "http200": 34,
+  "redirectsExcluded": 6,
+  "reviewMethod": "Agent reviewed separate DOM reference rows. Labels transcribed from DOM, not extracted values. Not independently human-adjudicated.",
+  "unreviewedFields": {
+    "location": [
+      "50337141",
+      "50340461"
+    ]
+  },
+  "generalizableAccuracy": false,
+  "before": {
+    "cases": 34,
+    "comparison": "whitespace-normalized exact text",
+    "fields": {
+      "company": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 32,
+        "exactMatches": 32,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 0.9411764705882353,
+        "accuracy": 0.9411764705882353
+      },
+      "title": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 34,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      },
+      "location": {
+        "reviewed": 32,
+        "present": 31,
+        "extracted": 31,
+        "exactMatches": 31,
+        "verifiedAbsent": 1,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      },
+      "experience": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 33,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 0.9705882352941176
+      },
+      "deadline": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 32,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 0.9411764705882353
+      }
+    }
+  },
+  "after": {
+    "cases": 34,
+    "comparison": "whitespace-normalized exact text",
+    "fields": {
+      "company": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 34,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      },
+      "title": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 34,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      },
+      "location": {
+        "reviewed": 32,
+        "present": 31,
+        "extracted": 31,
+        "exactMatches": 31,
+        "verifiedAbsent": 1,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      },
+      "experience": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 34,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      },
+      "deadline": {
+        "reviewed": 34,
+        "present": 34,
+        "extracted": 34,
+        "exactMatches": 34,
+        "verifiedAbsent": 0,
+        "falsePositives": 0,
+        "coverage": 1.0,
+        "accuracy": 1.0
+      }
+    }
+  }
+}

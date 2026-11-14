@@ -1,0 +1,10 @@
+import { readFile } from 'node:fs/promises';
+import { parseArgs } from 'node:util';
+import { createServer } from '../../apps/web/server.mjs';
+import { previewJobs } from '../../apps/web/lib/preview.js';
+const { values } = parseArgs({ options: { snapshot: { type: 'string' }, port: { type: 'string', default: '3001' } } });
+if (!values.snapshot) throw new Error('Usage: node tools/public-jobs/preview.mjs --snapshot PATH [--port 3001]');
+const port = Number(values.port);
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid port');
+previewJobs(JSON.parse(await readFile(values.snapshot, 'utf8')));
+createServer({ previewSnapshot: values.snapshot }).listen(port, '127.0.0.1', () => console.log(`검증 미리보기: http://127.0.0.1:${port}`));
