@@ -31,6 +31,27 @@ class ExtractionTests(unittest.TestCase):
     def test_conflicting_title_is_quarantined(self):
         self.assertEqual(run(HTML.replace('<h1>백엔드 개발자</h1>', '<h1>다른 공고</h1>'))["fields"]["title"]["status"], "conflict")
 
+    def test_section_headings_are_not_company_names(self):
+        html = HTML.replace('</body>', '<h2>총 1개의 포지션</h2><h2>접수기간 · 방법</h2><h2>기업정보</h2></body>')
+        self.assertEqual(run(html)['fields']['company']['value'], '예시랩')
+
+    def test_company_header_mismatch_is_still_a_conflict(self):
+        self.assertEqual(run(HTML.replace('<h2>예시랩</h2>', '<h2>다른 회사</h2>'))['fields']['company']['status'], 'conflict')
+
+    def test_position_badges_preserve_years_and_ignore_other_badges(self):
+        html = HTML.replace('</body>', '<div data-sentry-component="PositionJobView"><button aria-controls="p"><span data-slot="badge">경력1년↑</span><span data-slot="badge">정규직</span></button></div></body>')
+        self.assertEqual(run(html)['fields']['experience']['value'], '경력1년↑')
+
+    def test_conflicting_positions_are_not_declared_open_to_all_new_graduates(self):
+        html = HTML.replace('</body>', '<div data-sentry-component="PositionJobView"><button aria-controls="p"><span data-slot="badge">신입</span></button><button aria-controls="q"><span data-slot="badge">경력3년↑</span></button></div></body>')
+        self.assertEqual(run(html)['fields']['experience']['status'], 'conflict')
+        self.assertIn('experience:varies_by_position', run(html)['warnings'])
+
+    def test_definition_list_retains_early_closing_condition(self):
+        html = HTML.replace('<div><div><span>마감일</span></div><div><span>2026.12.04(금)<br></span></div></div>',
+                            '<dl><div><dt>마감일</dt><dd>2026.12.04(금)<span>채용 시 마감</span></dd></div></dl>')
+        self.assertEqual(run(html)['fields']['deadline']['value'], '2026.12.04(금) 채용 시 마감')
+
     def test_deadline_inside_inactive_tab_is_preserved(self):
         html = HTML.replace('<div><div><span>마감일', '<div hidden><div><span>마감일')
         self.assertEqual(run(html)["fields"]["deadline"]["value"], "2026.12.04(금)")
@@ -52,7 +73,7 @@ class ExtractionTests(unittest.TestCase):
 
     def test_duplicate_dom_values_conflict(self):
         extra = '<div data-sentry-component="QualificationItem"><span>경력</span><div>신입</div></div>'
-        self.assertEqual(run(HTML + extra)["fields"]["experience"]["status"], "conflict")
+        self.assertEqual(run(HTML.replace('</body>', extra + '</body>'))["fields"]["experience"]["status"], "conflict")
 
     def test_dom_change_retains_explicit_structured_fallback(self):
         fields = run(HTML.replace('data-sentry-component', 'changed'))["fields"]

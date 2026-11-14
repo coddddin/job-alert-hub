@@ -38,12 +38,22 @@ const importMap = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1
 const importMapHash = createHash('sha256').update(importMap).digest('base64');
 export const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src https://www.jobkorea.co.kr; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
 
-export function createServer() {
+export function createServer({ previewSnapshot = null } = {}) {
+  // Per-instance routes: preview never changes production files or global routes.
+  const activeRoutes = new Map(routes);
+  if (previewSnapshot) {
+    activeRoutes.set('/', ['public/preview.html', 'text/html; charset=utf-8']);
+    activeRoutes.set('/preview.js', ['public/preview.js', js]);
+    activeRoutes.set('/preview.css', ['public/preview.css', 'text/css; charset=utf-8']);
+    activeRoutes.set('/lib/preview.js', ['lib/preview.js', js]);
+    activeRoutes.set('/data/live/snapshot.json', [path.resolve(previewSnapshot), 'application/json; charset=utf-8']);
+    activeRoutes.delete('/data/live/report.json');
+  }
   return http.createServer(async (req, res) => {
     if (!['GET', 'HEAD'].includes(req.method)) {
       res.writeHead(405, { Allow: 'GET, HEAD' }).end(); return;
     }
-    const route = routes.get(new URL(req.url, 'http://localhost').pathname);
+    const route = activeRoutes.get(new URL(req.url, 'http://localhost').pathname);
     if (!route) { res.writeHead(404).end('Not found'); return; }
     try {
       const body = await readFile(path.isAbsolute(route[0]) ? route[0] : path.join(root, route[0]));
@@ -51,6 +61,7 @@ export function createServer() {
         'Content-Type': route[1], 'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'Content-Security-Policy': csp,
+        ...(previewSnapshot ? { 'X-Job-Alert-Preview': '1' } : {}),
       });
       res.end(req.method === 'HEAD' ? undefined : body);
     } catch (error) {
