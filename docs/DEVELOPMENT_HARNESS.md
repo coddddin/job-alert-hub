@@ -37,6 +37,11 @@ README 수정, 파일 삭제, 유료 서비스 활성화 금지.
 
 ## 환경·재현 정보
 
+프론트 통합 완료 기준은 기존 공고 화면에서 두 출처가 함께 표시되고, 검색·출처 필터·
+상세·스크랩이 연결되는 것이다. 디버깅 화면은 추출 검증에 사용한다. 겹치는 테스트를 추가하지
+않고 사용자 흐름을 한 번의 통합 테스트로 확인한다. 실제 공공기관 데이터와 가상 검증 데이터는
+결과에 구분해 기록한다.
+
 - Windows PowerShell, Node 24, Python 3.13 가상환경 `.venv-scrapling`.
 - pnpm 11 sandbox symlink 오류 시 기존 설치된 `.bin` 도구 직접 실행.
 - 기존 parser CLI 테스트는 Windows URL.pathname 문제 3건. Linux Node 22/24 CI로 전체 확인.
