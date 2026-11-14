@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const snapshot = JSON.parse(await readFile(process.argv[2], 'utf8'));
+assert.equal(snapshot.version, 1);
+assert.equal(snapshot.jobs.length, 1);
+assert.equal(snapshot.sources[0].skipped, 0);
+assert.equal(snapshot.jobs[0].company, '예시랩');
+assert.equal(snapshot.jobs[0].title, '백엔드 개발자');
+assert.deepEqual(snapshot.jobs[0].raw, { location: '서울 금천구', experience: '경력 (3년이상)', deadline: '2026.12.04(금)' });
+console.log('Python → TypeScript → Snapshot v1: five fields verified');

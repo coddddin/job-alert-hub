@@ -1,0 +1,33 @@
+name: Public job contract
+on:
+  pull_request:
+    paths:
+      - 'tools/public-jobs/**'
+      - 'apps/collector/**'
+      - '.github/workflows/public-jobs.yml'
+permissions:
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: python -m pip install -r tools/public-jobs/requirements.txt
+      - run: python -m unittest discover -s tools/public-jobs -p 'test_*.py' -v
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter kr-job-parser exec tsc -p tsconfig.build.json
+      - run: pnpm --filter @job-alert-hub/collector exec tsc -p tsconfig.build.json
+      - name: Python output through TypeScript boundary and web snapshot
+        run: |
+          python tools/public-jobs/extract.py --html tools/public-jobs/fixtures/detail.html --url https://www.jobkorea.co.kr/Recruit/GI_Read/10000001 --out .scrapling-local/batch.json
+          node tools/public-jobs/import.mjs --input .scrapling-local/batch.json --out .scrapling-local/imported
+          node tools/public-jobs/verify-import.mjs .scrapling-local/imported/snapshot.json
