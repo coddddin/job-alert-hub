@@ -14,7 +14,8 @@ const sourceName = job => sourceNames.get(sourceKey(job)) ?? job.source;
 const SOURCE_TAGS = { alio: '공공기관', jobkorea: '잡코리아', saramin: '사람인', wanted: '원티드' };
 const sourceTag = job => SOURCE_TAGS[sourceKey(job)] ?? sourceName(job).replace(/\s*\(.*\)$/, '');
 const sourceBadge = job => `<span class="source-tag" data-source="${escape(sourceKey(job))}">${escape(sourceTag(job))}</span>`;
-const catalog = live && jobs.some(job => sourceKey(job) === 'jobkorea');
+// ALIO 외 출처가 하나라도 있으면 전체 탭·출처 필터를 켠다.
+const catalog = live && jobs.some(job => sourceKey(job) !== 'alio');
 const kst = value => new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 const sourceLabel = source => `${source.label}${isStale(source.collectedAt) ? ' (오래된 데이터)' : ''}`;
 

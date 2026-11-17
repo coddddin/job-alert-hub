@@ -29,3 +29,5 @@ export function classifyNcs(fields: readonly string[]): Classified {
     },
   };
 }
+
+export { classifySaraminTags, SARAMIN_TAGS_VERSION } from './saramin-tags.js';
