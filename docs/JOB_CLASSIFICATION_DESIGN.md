@@ -12,7 +12,7 @@
 
 ## 2. 원칙
 
-1. **출처가 준 분류 > 규칙 분류 > 미분류.** 출처 코드가 있으면 그대로 매핑하고 추측하지 않는다.
+1. **출처가 준 분류(코드·태그) > 규칙 분류 > 미분류.** 출처 코드가 있으면 그대로 매핑하고 추측하지 않는다.
 2. **알림의 오탐이 누락보다 나쁘다.** 규칙이 애매하거나 충돌하면 미분류로 두고 전체 탭에만 보인다.
 3. **근거를 남긴다.** 어떤 코드·키워드로 분류했는지 스냅샷에 기록해 화면과 검증에서 확인한다.
 4. **유료 서비스 금지.** LLM 분류는 쓰지 않는다. 사전과 규칙은 버전을 붙여 저장소에 둔다.
@@ -23,7 +23,7 @@
 
 ```ts
 classification?: {
-  method: 'source-code' | 'rule' | 'none';
+  method: 'source-code' | 'source-tag' | 'rule' | 'none';
   version: string;            // 'ncs-map/1', 'saramin-code/1', 'keyword-rules/1'
   evidence: readonly string[]; // 예: ['NCS:정보통신', 'title:백엔드', 'skill:Spring']
   nonHiring?: boolean;         // 교육생 모집·광고성 공고
@@ -39,8 +39,8 @@ classification?: {
 ```
 provider(raw + signals) ─▶ classify(source, signals) ─▶ CollectedJob{kind, role, classification}
    ALIO:     NCS 코드            → ncs-map/1         (기존 로직 이동)
-   사람인:   job_mid_cd/job_cd   → saramin-code/1    (출처 코드)
-   원티드:   category/tag id     → wanted-code/1     (출처 코드)
+   사람인:   목록의 직무 태그     → saramin-tags/1    (출처 태그)
+   원티드:   보류 (7절)
    잡코리아: 제목·스킬·담당업무   → keyword-rules/1   (규칙)
 ```
 
@@ -77,26 +77,30 @@ provider(raw + signals) ─▶ classify(source, signals) ─▶ CollectedJob{kin
    권한을 그 작업에만 부여). 결합 시 "같은 날짜만" 규칙을 "마감 전 + 마지막 확인 7일 이내"로 바꾸고,
    확인 시각은 공고별 `observedAt`로 표시한다.
 
-## 7. 사람인·원티드
+## 7. 사람인·원티드 (공개 페이지, API 미사용)
 
-공개 페이지를 긁지 않고 **공식 API**를 쓴다. 출처 코드로 분류할 수 있어 규칙 분류보다 정확하고,
-차단 위험이 없다.
+사용자 결정(2026-11-17): 공식 API는 쓰지 않는다. 잡코리아와 같이 공개 페이지를 읽되, 6절의 요청 원칙을 따른다.
+2026-11-17에 `JobAlertHubValidation/0.2` UA로 각 1~3회 요청해 확인한 결과:
 
-| 출처 | 경로 | 분류 신호 | 필요한 것 |
-|---|---|---|---|
-| 사람인 | 사람인 채용공고 Open API (`oapi.saramin.co.kr`) | 직무 코드(job_mid_cd, job_cd) | 무료 access-key 발급 → GitHub secret `SARAMIN_KEY` |
-| 원티드 | 원티드 OpenAPI (`openapi.wanted.jobs`) | 직군·직무 카테고리 | 파트너 신청 후 client id/secret → secret 2개 |
+| 출처 | 접근 | 구조 | 분류 신호 | 판단 |
+|---|---|---|---|---|
+| 사람인 | 검색 `/zf_user/search/recruit` 200, robots.txt에서 검색 경로 허용 | **목록 한 페이지(1요청)에 공고 40건**의 제목·회사·근무지·경력·학력·고용형태·마감·직무 태그 | 사이트가 붙인 직무 태그(`job_sector`, 예: "반도체설계, 공정엔지니어") | 진행. 상세 요청 없이 목록만으로 수집 |
+| 원티드 | 목록 `/wdlist` 200이지만 공고는 브라우저에서 내부 JSON으로 그린다. robots.txt·sitemap은 우리 UA에 CloudFront 403 | 서버 HTML에 공고 없음 | (확인 불가) | **보류.** 공개 HTML에 데이터가 없고 자동 접근을 거부하는 신호가 있다. UA 위장·내부 JSON 호출은 하지 않는다 |
 
-- 일일 호출 한도·약관·표시 의무(출처 표기, 링크)는 키 발급 시 확인해 이 표에 적는다.
-- 구현은 ALIO와 같은 TypeScript Provider. 키가 없거나 실패하면 그 출처만 빠지고 나머지는 배포된다
-  (잡코리아 결합과 같은 선택 단계).
+- 사람인 상세(`/zf_user/jobs/relay/view`)는 본문이 비동기로 로드되고 JSON-LD가 없어, 목록 정보만 쓴다.
+  상세 링크는 원문 이동용으로 화면에 둔다.
+- 사람인 직무 태그는 사이트 분류어이므로 `method: 'source-code'`가 아닌 `'source-tag'`로 기록하고,
+  태그→역할 매핑 사전(`saramin-tags/1`)으로 분류한다. 키워드 규칙보다 우선한다.
+- 사람인 수집은 검색어(개발·프론트엔드·백엔드 등)별 목록 페이지를 2초 간격으로 읽고 회당 상한 10페이지(최대 400건).
+  ID는 `saramin:<rec_idx>`. 403·429·5xx면 그 회차를 멈춘다.
 
 ## 8. 구현 순서
 
 1. 분류 모듈과 계약 필드 추가, ALIO NCS 매핑을 이 모듈로 이동(동작 동일 확인).
 2. 잡코리아 추출기 `signals` + 키워드 규칙 v1 + 라벨 표본·holdout 평가.
 3. 비채용 판정과 화면(자동 분류 근거, 교육·광고 토글).
-4. 사람인 API Provider(키 발급 후). 5. 원티드 API Provider(파트너 승인 후).
+4. 사람인 목록 수집기(Python 추출 → 같은 JSON 계약 v1의 `source: 'saramin'`) + 태그 매핑.
+5. 원티드: 공개 HTML에 데이터가 생기거나 접근 거부가 풀리면 재검토.
 6. 잡코리아 증분 저장소와 하루 여러 번 실행.
 
 각 단계는 기존 한 번의 브라우저 통합 흐름(`tools/public-jobs/verify-front.mjs`)에 출처·분류 확인을 더해 검증한다.
