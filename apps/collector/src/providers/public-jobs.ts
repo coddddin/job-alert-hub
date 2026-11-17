@@ -1,6 +1,6 @@
 import type { CollectedJob } from '../job.js';
 import type { Provider } from './provider.js';
-import { UNCLASSIFIED } from '../classify/index.js';
+import { classifyKeywords, type JobSignals } from '../classify/index.js';
 
 export const publicFields = ['company', 'title', 'location', 'experience', 'deadline'] as const;
 export type PublicField = typeof publicFields[number];
@@ -16,7 +16,11 @@ export interface PublicJobObservation {
   readonly extractorVersion: string;
   readonly fields: Readonly<Record<PublicField, ExtractedField>>;
   readonly warnings: readonly string[];
+  /** `jobkorea-detail/2`부터. 추출기는 분류하지 않고 원문 신호만 넘긴다. */
+  readonly signals?: JobSignals;
 }
+/** 받는 추출기 버전. /1은 신호가 없어 미분류로 들어온다. */
+export const extractorVersions = ['jobkorea-detail/1', 'jobkorea-detail/2'] as const;
 export interface PublicJobBatch {
   readonly version: 1;
   readonly source: 'jobkorea';
@@ -37,13 +41,23 @@ function field(value: unknown): value is ExtractedField {
   return (value['status'] === 'missing' || value['status'] === 'conflict') && value['value'] === null && value['evidence'] === null;
 }
 
+const strings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.length <= 200 && value.every(item => nonempty(item) && item.length <= 200);
+
+function signals(value: unknown): value is JobSignals {
+  return object(value) && strings(value['skills']) && strings(value['jobNames']) &&
+    (value['duties'] === null || nonempty(value['duties']));
+}
+
 function observation(value: unknown): value is PublicJobObservation {
   if (!object(value)) return false;
   if (typeof value['externalId'] !== 'string' || !/^\d+$/u.test(value['externalId'])) return false;
   if (value['url'] !== `https://www.jobkorea.co.kr/Recruit/GI_Read/${value['externalId']}`) return false;
   if (typeof value['observedAt'] !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|\+00:00)$/u.test(value['observedAt']) || !Number.isFinite(Date.parse(value['observedAt']))) return false;
   if (new Date(value['observedAt']).toISOString().slice(0, 10) !== value['observedAt'].slice(0, 10)) return false;
-  if (value['extractorVersion'] !== 'jobkorea-detail/1') return false;
+  if (value['extractorVersion'] === 'jobkorea-detail/1' && value['signals'] !== undefined) return false;
+  if (!extractorVersions.some(version => version === value['extractorVersion'])) return false;
+  if (value['signals'] !== undefined && !signals(value['signals'])) return false;
   const fields = value['fields'];
   return object(fields) && publicFields.every(name => field(fields[name])) &&
     Array.isArray(value['warnings']) && value['warnings'].every(nonempty);
@@ -65,8 +79,9 @@ function toJob(item: PublicJobObservation): CollectedJob | null {
     id: `jobkorea:${item.externalId}`, source: 'jobkorea', company: company.value, title: title.value,
     url: item.url, applyUrl: item.url,
     raw: { location: location.value ?? '', experience: experience.value ?? '', deadline: deadline.value ?? '' },
-    // No invented job classification, company homepage, education or requirements.
-    ...UNCLASSIFIED, employment: '', tags: [], description: '', details: null,
+    // Rule classification from the extractor's raw signals; without signals it stays unclassified.
+    // No invented company homepage, education or requirements.
+    ...classifyKeywords(title.value, item.signals), employment: '', tags: [], description: '', details: null,
   };
 }
 

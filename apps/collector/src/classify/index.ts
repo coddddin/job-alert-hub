@@ -37,3 +37,4 @@ export function classifyNcs(fields: readonly string[]): Classified {
 }
 
 export { classifySaraminTags, SARAMIN_TAGS_VERSION } from './saramin-tags.js';
+export { classifyKeywords, KEYWORD_RULES_VERSION, type JobSignals } from './keywords.js';

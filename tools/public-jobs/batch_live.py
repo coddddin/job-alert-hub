@@ -15,14 +15,14 @@ SEARCH = 'https://www.jobkorea.co.kr/recruit/joblist?menucode=search'
 
 def reference_html(page):
     # Retain only relevant field markup for offline debugging, never whole pages.
-    pieces = page.css('script[type="application/ld+json"], h1, h2, [data-sentry-component="RecruitmentItem"], [data-sentry-component="QualificationItem"]').getall()
+    pieces = page.css('script[type="application/ld+json"], h1, h2, [data-sentry-component="RecruitmentItem"], [data-sentry-component="QualificationItem"], [data-sentry-component="RecruitmentField"]').getall()
     pieces += page.xpath('//*[not(*) and normalize-space(.)="마감일"]/parent::*/parent::*').getall()
     for node in page.css('[data-sentry-component="PositionJobView"] button[aria-controls]'):
         pieces.append('<div data-sentry-component="PositionJobView">' + node.get() + '</div>')
     return '<html><body>' + '\n'.join(pieces) + '</body></html>'
 
 
-def run(links, out, *, fetch=fetch_page, sleep=time.sleep, interval=2):
+def run(links, out, *, fetch=fetch_page, sleep=time.sleep, interval=2, reference=reference_html):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
     attempts, jobs = [], []
@@ -35,7 +35,7 @@ def run(links, out, *, fetch=fetch_page, sleep=time.sleep, interval=2):
             job = extract(page, url, observed)
             jobs.append(job)
             identifier = job['externalId']
-            (out / f'{identifier}.html').write_text(reference_html(page), encoding='utf-8')
+            (out / f'{identifier}.html').write_text(reference(page), encoding='utf-8')
             result = {'url': url, 'httpStatus': 200, 'observedAt': observed,
                       'requiredFieldsPresent': all(job['fields'][f]['value'] for f in ('company', 'title'))}
         except Exception as exc:
