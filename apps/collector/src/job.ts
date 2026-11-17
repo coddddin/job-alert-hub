@@ -34,9 +34,11 @@ export interface CollectedJob {
   readonly classification?: JobClassification;
 }
 
-/** 직무 분류 방법과 근거. 출처 코드 > 출처 태그 > 규칙 > 미분류 순으로 믿는다. */
+/** 직무 분류 방법과 근거. 출처 코드 > 출처 태그 > 규칙 > 모델 추정 > 미분류 순으로 믿는다. */
 export interface JobClassification {
-  readonly method: 'source-code' | 'source-tag' | 'rule' | 'none';
+  readonly method: 'source-code' | 'source-tag' | 'rule' | 'model' | 'none';
+  /** 모델 추정의 확률(0~1). 다른 방법에는 없다. */
+  readonly confidence?: number;
   /** 매핑표·규칙 버전. 예: `ncs-map/1` */
   readonly version: string;
   /** 판단에 쓴 코드·태그·키워드. 예: `NCS:정보통신` */
