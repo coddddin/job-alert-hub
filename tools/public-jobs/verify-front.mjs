@@ -14,22 +14,28 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { createServer } from '../../apps/web/server.mjs';
 import { normalizeJob } from '../../apps/web/lib/normalize-job.js';
-import { matchJob, notificationCandidates } from '../../apps/web/lib/matching.js';
+import { defaults, matchJob, notificationCandidates } from '../../apps/web/lib/matching.js';
 import { initialState } from '../../apps/web/lib/state.js';
+import { FAMILIES } from '../../apps/web/lib/taxonomy.js';
 
 const { values } = parseArgs({ options: { combined: { type: 'string' }, base: { type: 'string' }, shots: { type: 'string' } } });
 if (!values.combined || !values.base) throw new Error('Usage: verify-front.mjs --combined merged.json --base alio.json');
 const { chromium } = createRequire(import.meta.url)('playwright');
 const snapshot = JSON.parse(await readFile(values.combined, 'utf8'));
 const count = name => snapshot.jobs.filter(job => job.id.startsWith(`${name}:`)).length;
+const log = {};
 const privateSources = snapshot.sources.map(source => source.name).filter(name => name !== 'alio');
 const TAGS = { jobkorea: '잡코리아', saramin: '사람인' };
-// Independent expectation for the personal tab and alerts: the same library rules applied in Node.
+// Independent expectation for the personal tab and alerts: the same library rules applied in Node,
+// with the filters the page sets from a first-visit answer (app.js applyProfile).
 const normalized = snapshot.jobs.map(job => normalizeJob({ ...job, skills: job.tags ?? [] }, snapshot.today));
-const filters = { ...initialState().filters, region: '서울' };
-const expectedMatch = name => normalized.filter(job => job.id.startsWith(`${name}:`) && matchJob(job, filters).status === 'match').length;
-const expectedAlerts = name => notificationCandidates(normalized, initialState().notifications).filter(job => job.id.startsWith(`${name}:`)).length;
-const log = {};
+const familyIds = labels => labels.map(label => FAMILIES.find(family => family.label === label).id);
+const profileFilters = ({ families, career, region }) => ({ family: 'mine', families: familyIds(families), career, region, role: 'all' });
+const expectedMatch = (name, profile) => normalized.filter(job => job.id.startsWith(`${name}:`) &&
+  matchJob(job, { ...defaults, ...profileFilters(profile) }).status === 'match').length;
+const expectedAlerts = (name, profile) => notificationCandidates(normalized, { ...initialState().notifications, ...profileFilters(profile) })
+  .filter(job => job.id.startsWith(`${name}:`)).length;
+const sum = values => values.reduce((a, b) => a + b, 0);
 
 async function serve(file) {
   const server = createServer({ snapshot: file });
@@ -37,6 +43,17 @@ async function serve(file) {
   return { server, url: `http://127.0.0.1:${server.address().port}/` };
 }
 const rows = page => page.locator('#job-list tr:not(.empty)').count();
+/** 첫 방문 질문에 답한다. families는 화면 라벨, region은 시·도 또는 'all'. */
+async function answer(page, { families, career, region }) {
+  await page.waitForSelector('#onboarding[open]');
+  for (const box of await page.locator('#onboarding-families input').all()) await box.setChecked(false);
+  for (const label of families) await page.locator('#onboarding-families label', { hasText: label }).locator('input').check();
+  await page.locator(`#onboarding-careers input[value="${career}"]`).check();
+  await page.selectOption('#onboarding-region', region);
+  await page.click('#onboarding-form button[type="submit"]');
+  await page.waitForSelector('#onboarding', { state: 'hidden' });
+}
+const IT_NEW_SEOUL = { families: ['IT·개발'], career: 'new', region: '서울' };
 const shot = (page, name) => values.shots && page.screenshot({ path: path.join(values.shots, `${name}.png`), fullPage: false });
 
 const browser = await chromium.launch();
@@ -47,12 +64,13 @@ try {
   const ref = await (await browser.newContext()).newPage();
   await ref.goto(alioOnly.url);
   await ref.waitForSelector('#job-list tr');
+  await answer(ref, IT_NEW_SEOUL);
   assert.equal(await ref.locator('[data-tab="match"]').getAttribute('aria-selected'), 'true');
   assert.equal(await ref.locator('#source-filter').isHidden(), true);
   const refMatch = Number(await ref.textContent('#tab-match'));
   await ref.click('[data-view="alerts"]');
   const refAlerts = await ref.locator('#alert-preview li:not(.muted)').count();
-  log.alioOnly = { startTab: 'match', sourceFilterHidden: true, match: refMatch, alerts: refAlerts };
+  log.alioOnly = { profile: 'IT·개발/신입/서울', startTab: 'match', sourceFilterHidden: true, match: refMatch, alerts: refAlerts };
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
@@ -60,6 +78,10 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(combined.url);
   await page.waitForSelector('#job-list tr');
+  // 0. 첫 방문: 질문이 열리고, 건너뛰면 전체 공고를 둘러본다.
+  assert.equal(await page.locator('#onboarding').isVisible(), true);
+  await shot(page, '0-onboarding');
+  await page.click('#onboarding-skip');
 
   // 1. Load: both sources, with per-source collection time and no stale marker.
   const edition = await page.textContent('#edition');
@@ -120,25 +142,45 @@ try {
   assert.ok(await page.locator(`[data-detail="${target.id}"]`).isVisible());
   log.scrap = { id: target.id, savedCount: 1, persistedAfterReload: true };
 
-  // 6. Personal tab and alerts: ALIO results equal the ALIO-only reference; private jobs enter
-  // only when classified as development (unclassified JobKorea stays out).
+  // 6. Personal tab and alerts with the same first-visit answers as ALIO-only: ALIO results are
+  // unchanged; private jobs enter only as the same library rules say (unclassified JobKorea stays out).
   await page.click('[data-view="feed"]');
-  await page.click('#reset-filters');
-  await page.selectOption('#filter-region', '서울');
-  await page.click('[data-tab="match"]');
+  await page.selectOption('#filter-source', 'all');
+  await page.click('#open-onboarding');
+  await answer(page, IT_NEW_SEOUL);
+  assert.equal(await page.locator('[data-tab="match"]').getAttribute('aria-selected'), 'true');
   const match = Number(await page.textContent('#tab-match'));
   const inMatch = { alio: await page.locator('#job-list [data-detail^="alio:"]').count() };
   for (const name of privateSources) {
     inMatch[name] = await page.locator(`#job-list [data-detail^="${name}:"]`).count();
-    assert.equal(inMatch[name], expectedMatch(name), name);
+    assert.equal(inMatch[name], expectedMatch(name, IT_NEW_SEOUL), name);
   }
   assert.equal(inMatch.alio, refMatch);
-  assert.equal(match, Object.values(inMatch).reduce((a, b) => a + b, 0));
+  assert.equal(match, sum(Object.values(inMatch)));
   await page.click('[data-view="alerts"]');
   const alerts = await page.locator('#alert-preview li:not(.muted)').count();
-  const privateAlerts = Object.fromEntries(privateSources.map(name => [name, expectedAlerts(name)]));
-  assert.equal(alerts, refAlerts + Object.values(privateAlerts).reduce((a, b) => a + b, 0));
+  const privateAlerts = Object.fromEntries(privateSources.map(name => [name, expectedAlerts(name, IT_NEW_SEOUL)]));
+  assert.equal(alerts, refAlerts + sum(Object.values(privateAlerts)));
   log.regression = { match, inMatch, alerts, privateAlerts, alioAlertsUnchanged: refAlerts };
+
+  // 7. A non-IT user: only their job family reaches the personal tab, and the answer survives a reload.
+  await page.click('[data-view="feed"]');
+  await page.click('#open-onboarding');
+  const MEDICAL = { families: ['의료·보건·복지'], career: 'any', region: 'all' };
+  await answer(page, MEDICAL);
+  const medical = await page.locator('#job-list [data-detail]').evaluateAll(buttons => buttons.map(b => b.dataset.detail));
+  // Saramin fills families from site tags, so its medical postings reach a medical profile too.
+  const saraminMedical = medical.filter(id => id.startsWith('saramin:')).length;
+  if (privateSources.includes('saramin')) assert.equal(saraminMedical, expectedMatch('saramin', MEDICAL));
+  const byId = new Map(snapshot.jobs.map(job => [job.id, job]));
+  assert.ok(medical.length > 0);
+  assert.ok(medical.every(id => byId.get(id)?.families?.includes('medical')), 'non-medical job in personal tab');
+  await shot(page, '7-medical');
+  await page.reload();
+  await page.waitForSelector('#job-list tr');
+  assert.equal(await page.locator('#onboarding').isVisible(), false);
+  assert.match(await page.textContent('#filter-family'), /내 관심 직무 \(의료·보건·복지\)/);
+  log.personalized = { profile: '의료·보건·복지/상관없음/전국', match: medical.length, saraminMedical, allMedical: true, persistedAfterReload: true };
 
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ ok: true, ...log }, null, 2));
