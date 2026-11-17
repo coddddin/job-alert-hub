@@ -33,4 +33,14 @@ node tools/public-jobs/preview.mjs --snapshot new-combined-preview/snapshot.json
 실험용 데이터는 git에 포함되지 않으므로 새 PC에서는 데이터를 다시 준비해야 한다.
 접근 실패는 개별 제외 또는 배치 중지로 남으며 자동 CI에서는 실제 사이트를 요청하지 않는다.
 
+같은 결합 파일을 기존 공고 화면에서 열려면 프로젝트 폴더에서 다음을 실행한다.
+
+```powershell
+$env:JOB_SNAPSHOT = 'new-combined-preview/snapshot.json'
+node apps/web/server.mjs
+```
+
+민간 공고가 들어 있는 스냅샷에서는 공고 화면의 **전체** 탭이 먼저 열리고, 출처를 선택할 수
+있다. 맞춤 탭과 알림은 기존 신입 개발 직무 판정을 사용한다.
+
 검토 기준: `docs/DEVELOPMENT_HARNESS.md`. 작업 결과·제한: `docs/VALIDATION_PREVIEW_LOG.md`.

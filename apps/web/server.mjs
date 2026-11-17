@@ -38,9 +38,13 @@ const importMap = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1
 const importMapHash = createHash('sha256').update(importMap).digest('base64');
 export const csp = `default-src 'self'; script-src 'self' 'sha256-${importMapHash}'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src https://www.jobkorea.co.kr; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`;
 
-export function createServer({ previewSnapshot = null } = {}) {
+export function createServer({ previewSnapshot = null, snapshot = null } = {}) {
   // Per-instance routes: preview never changes production files or global routes.
   const activeRoutes = new Map(routes);
+  if (snapshot) {
+    activeRoutes.set('/data/live/snapshot.json', [path.resolve(snapshot), 'application/json; charset=utf-8']);
+    activeRoutes.delete('/data/live/report.json');
+  }
   if (previewSnapshot) {
     activeRoutes.set('/', ['public/preview.html', 'text/html; charset=utf-8']);
     activeRoutes.set('/preview.js', ['public/preview.js', js]);
@@ -72,5 +76,5 @@ export function createServer({ previewSnapshot = null } = {}) {
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 3000);
-  createServer().listen(port, '127.0.0.1', () => console.log(`Job Alert Hub: http://127.0.0.1:${port}`));
+  createServer({ snapshot: process.env.JOB_SNAPSHOT }).listen(port, '127.0.0.1', () => console.log(`Job Alert Hub: http://127.0.0.1:${port}`));
 }

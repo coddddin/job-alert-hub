@@ -6,8 +6,17 @@ export const REGIONS = Object.freeze(['all', ...SIDO]);
 
 export const defaults = Object.freeze({ role: 'all', region: '서울', includeUnspecified: true, keyword: '' });
 
+export function matchesCatalogFilters(job, filters) {
+  if (filters.role !== 'all' && job.role !== filters.role) return false;
+  if (!filters.includeUnspecified && job.experience === 'unspecified') return false;
+  if (filters.region !== 'all' && matchesRegion(job.location, filters.region) === 'no') return false;
+  const searchable = [job.title, job.company, ...job.skills].join(' ').toLocaleLowerCase();
+  return filters.keyword.trim().toLocaleLowerCase().split(/\s+/).every(word => searchable.includes(word));
+}
+
 export function matchJob(job, filters = defaults) {
   if (job.closed) return { status: 'exclude', reason: '마감된 공고' };
+  if (job.id?.startsWith('jobkorea:') && !job.role) return { status: 'exclude', reason: '직무 분류 대기 중' };
   if (job.kind !== 'development') return { status: 'exclude', reason: '개발 채용공고 아님' };
   if (filters.role !== 'all' && job.role !== filters.role) return { status: 'exclude', reason: '선택한 분야 아님' };
   if (job.experience === 'experienced') return { status: 'exclude', reason: '경력 필수' };
