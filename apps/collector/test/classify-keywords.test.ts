@@ -38,6 +38,12 @@ describe('keyword rules (keyword-rules/1)', () => {
     expect(pick('플랫폼 프로젝트 팀장(PM)급', signals(['소프트웨어개발'], ['DevOps']))).toMatchObject({ method: 'none' });
     expect(pick('IT 교육 공고', signals(['개발자'], [], '교육일정 직무별 상이, 상세요강 참고'))).toMatchObject({ method: 'none' });
   });
+  it('keeps a negative keyword from counting when its exception appears, and holds back titles listing non-dev jobs', () => {
+    // '디자이너'는 비개발 신호지만 'UI 개발'이 함께 있으면 세지 않는다(negativeUnless).
+    expect(pick('UI 개발 디자이너', signals(['프론트엔드 개발'], ['React']))).toMatchObject({ kind: 'development', role: '프론트엔드' });
+    // 제목이 개발과 기획을 나열하면 두 필드가 개발을 가리켜도 확정하지 않는다(listedNonDev).
+    expect(pick('백엔드 개발/서비스 기획', signals(['백엔드 개발자'], ['Spring']))).toMatchObject({ method: 'none' });
+  });
   it('assigns a single role confirmed by two fields', () => {
     expect(pick('백엔드 엔지니어(신입)', signals(['신입 백엔드 엔지니어']))).toMatchObject({ kind: 'development', role: '백엔드', families: ['it'], method: 'rule' });
     expect(pick('Android native개발자', signals(['모바일앱개발'], ['Kotlin']))).toMatchObject({ role: '모바일' });
