@@ -72,6 +72,7 @@ describe('toJob', () => {
       raw: { experience: '신입+경력', location: '서울,전남광주', deadline: '20261117' },
       kind: 'development',
       role: '전산·IT',
+      classification: { method: 'source-code', version: 'ncs-map/1', evidence: ['NCS:정보통신'] },
       employment: '정규직',
       tags: ['경영.회계.사무', '정보통신'],
       description: '채용 3명 · 학력무관',
@@ -93,6 +94,7 @@ describe('toJob', () => {
     const job = toJob({ ...item, ncsCdNmLst: '건설,기계' });
     expect(job.kind).toBe('other');
     expect(job.role).toBe('건설');
+    expect(job.classification?.evidence).toEqual(['NCS:건설']);
   });
 
   it('우대 조건이 있으면 남긴다', () => {

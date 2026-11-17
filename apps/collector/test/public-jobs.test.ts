@@ -40,7 +40,7 @@ describe('public job boundary', () => {
   it('preserves raw fields and stable identity without fetching', async () => {
     const result = await publicJobs(batch([item])).collect(noFetch);
     expect(result.jobs[0]).toMatchObject({ id: 'jobkorea:10000001', company: '예시랩', title: '백엔드 개발자',
-      raw: { location: '서울 금천구', experience: '경력 (3년이상)', deadline: '2026.12.04(금)' }, details: null, kind: 'other' });
+      raw: { location: '서울 금천구', experience: '경력 (3년이상)', deadline: '2026.12.04(금)' }, details: null, kind: 'other', role: '', classification: { method: 'none' } });
     expect(noFetch).not.toHaveBeenCalled();
   });
   it('retains unknown optional fields instead of inventing conditions', async () => {

@@ -16,7 +16,8 @@ export function matchesCatalogFilters(job, filters) {
 
 export function matchJob(job, filters = defaults) {
   if (job.closed) return { status: 'exclude', reason: '마감된 공고' };
-  if (job.id?.startsWith('jobkorea:') && !job.role) return { status: 'exclude', reason: '직무 분류 대기 중' };
+  // 출처와 상관없이 분류 근거가 없으면 맞춤·알림에서 뺀다. 예전 스냅샷은 role이 비어 있다.
+  if (job.classification?.method === 'none' || !job.role) return { status: 'exclude', reason: '직무 분류 대기 중' };
   if (job.kind !== 'development') return { status: 'exclude', reason: '개발 채용공고 아님' };
   if (filters.role !== 'all' && job.role !== filters.role) return { status: 'exclude', reason: '선택한 분야 아님' };
   if (job.experience === 'experienced') return { status: 'exclude', reason: '경력 필수' };
