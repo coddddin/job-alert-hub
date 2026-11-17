@@ -7,7 +7,7 @@ export const ROLES = Object.freeze(['all', ...IT_ROLES]);
 export const REGIONS = Object.freeze(['all', ...SIDO]);
 /** 직무군 필터: 내 관심 직무(첫 방문 때 고른 것), 전체, 또는 직무군 하나. */
 export const FAMILY_FILTERS = Object.freeze(['mine', 'all', ...FAMILY_IDS]);
-/** 경력 단계: 신입(경력 필수 제외), 경력(신입 전용 제외), 상관없음. */
+/** 경력 단계: 신입(경력 필수 공고 제외), 경력(신입 공고도 포함), 상관없음. */
 export const CAREERS = Object.freeze(['new', 'experienced', 'any']);
 
 // 첫 방문 질문에 답하지 않은 사람은 예전처럼 IT·개발 신입 기준으로 본다.
@@ -53,7 +53,6 @@ export function matchJob(job, filters = defaults) {
   if (filters.role !== 'all' && job.role !== filters.role) return { status: 'exclude', reason: '선택한 세부 직무 아님' };
   const career = filters.career ?? 'new';
   if (career === 'new' && job.experience === 'experienced') return { status: 'exclude', reason: '경력 필수' };
-  if (career === 'experienced' && job.parsed?.experience?.kind === 'new') return { status: 'exclude', reason: '신입 대상' };
   if (job.experience === 'unspecified' && !filters.includeUnspecified) return { status: 'exclude', reason: '경력무관 제외 설정' };
   // 근무지 판단은 kr-job-parser에 맡긴다. "외 2곳"처럼 숨은 근무지가 있으면 'unknown'이 된다.
   const region = filters.region === 'all' ? 'yes' : matchesRegion(job.location, filters.region);

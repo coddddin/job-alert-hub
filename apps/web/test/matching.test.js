@@ -80,7 +80,7 @@ test('첫 방문 답(직무군·경력)으로 맞춤을 고르고, 직무를 모
   assert.equal(matchJob(unknown, base).status, 'review');
   assert.deepEqual(notificationCandidates([nurse, unknown], base).map(job => job.id), ['alio:9']);
   assert.equal(matchJob(nurse, { ...base, career: 'new' }).reason, '경력 필수');
-  assert.equal(matchJob(jobs[0], { ...defaults, career: 'experienced' }).reason, '신입 대상');
+  assert.equal(matchJob(jobs[0], { ...defaults, career: 'experienced' }).status, 'match'); // 경력자도 신입 공고를 본다
   const saved = sanitizeState({ version: 1, profile: { families: ['medical', 'bad', 'medical'], career: 'any', region: 'all' } });
   assert.deepEqual(saved.profile, { families: ['medical'], career: 'any', region: 'all' });
   assert.equal(sanitizeState({ version: 1, profile: { families: [] } }).profile, null);
