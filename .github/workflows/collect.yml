@@ -5,7 +5,7 @@ name: Collect & Deploy
 # 잡코리아·사람인은 선택 단계다. 하나가 실패하거나 비어 있으면 그 출처만 빠지고 나머지는 그대로 배포한다.
 on:
   schedule:
-    - cron: '17 21 * * *' # 매일 06:17 KST
+    - cron: '7 * * * *' # 매시 7분. 민간 출처는 회당 상한과 이전 배포분 이월(누적)로 요청을 줄인다
   workflow_dispatch:
   push:
     branches: [main]
@@ -39,6 +39,16 @@ jobs:
         continue-on-error: true
         with:
           python-version: '3.12'
+      - name: Previous deploy and plan (optional)
+        continue-on-error: true
+        # 이전 배포 스냅샷: 민간 공고 누적(이월)과, 최근 본 잡코리아 상세를 다시 요청하지 않는 데 쓴다.
+        run: |
+          mkdir -p .scrapling-local
+          curl -fsS --max-time 30 "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/live/snapshot.json" -o .scrapling-local/previous.json || rm -f .scrapling-local/previous.json
+          node tools/public-jobs/seen-ids.mjs .scrapling-local/previous.json jobkorea 24 > .scrapling-local/jobkorea-seen.txt
+          defaults=$(cd tools/public-jobs && python -c "import saramin_list; print(','.join(saramin_list.QUERIES))")
+          node tools/public-jobs/collection-plan.mjs --plan tools/public-jobs/collection-plan.json --slots 10 --defaults "$defaults" | paste -sd, > .scrapling-local/saramin-queries.txt
+          echo "saramin queries: $(cat .scrapling-local/saramin-queries.txt)"
       - name: Collect JobKorea (optional)
         continue-on-error: true
         timeout-minutes: 5
@@ -49,12 +59,16 @@ jobs:
         continue-on-error: true
         timeout-minutes: 3
         # 검색 목록만 읽는다(상세 요청 없음). 2초 간격, 회당 10페이지 상한, 차단 신호면 부분 결과로 중지.
-        run: python tools/public-jobs/saramin_list.py --max-pages 10 --out .scrapling-local/saramin
+        # 수집 계획(관심 직무군 70%)의 검색어 10개, 검색어마다 1페이지.
+        run: |
+          queries=$(cat .scrapling-local/saramin-queries.txt 2>/dev/null || true)
+          python tools/public-jobs/saramin_list.py --max-pages 10 --out .scrapling-local/saramin ${queries:+--queries "$queries" --offset 0}
       - name: Merge private sources into snapshot (optional)
         continue-on-error: true
         run: >-
           node tools/public-jobs/merge-live.mjs --base apps/web/data/live/snapshot.json
           --batch .scrapling-local/jobkorea/batch.json --batch .scrapling-local/saramin/batch.json
+          --previous .scrapling-local/previous.json --plan tools/public-jobs/collection-plan.json
       - name: Build static site
         run: pnpm --filter @job-alert-hub/web build:site
       - uses: actions/upload-pages-artifact@v3

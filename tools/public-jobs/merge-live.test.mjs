@@ -66,3 +66,32 @@ test('merges several sources in order; a bad or stale one is skipped without dro
   assert.equal(lines.filter(line => line.includes('skipped')).length, 3, lines.join('\n'));
   assert.equal((await mergeFiles(base, [files[1]])).snapshot, null);
 });
+
+test('carries recent private jobs from the previous deploy; drops old, closed and re-seen ones', async () => {
+  const { carryOver } = await import('./merge-live.mjs');
+  const now = new Date('2026-11-17T06:00:00Z');
+  const job = (id, seenAt, deadline = '2026-11-30') => ({ ...base.jobs[0], id, source: id.split(':')[0], seenAt, raw: { ...base.jobs[0].raw, deadline } });
+  const current = { ...base, jobs: [...base.jobs, job('jobkorea:1', '2026-11-17T05:00:00Z')], sources: [...base.sources, { name: 'jobkorea', label: '잡코리아', total: 1, skipped: 0, collectedAt: '2026-11-17T05:00:00Z' }] };
+  const previous = { ...base, sources: [...current.sources, { name: 'saramin', label: '사람인', total: 3, skipped: 0, collectedAt: '2026-11-16T09:00:00Z' }], jobs: [
+    job('jobkorea:1', '2026-11-16T05:00:00Z'), // 이번에 다시 봄 → 새 관측 유지
+    job('jobkorea:2', '2026-11-16T05:00:00Z'), // 이월
+    job('jobkorea:3', '2026-11-13T05:00:00Z'), // 72시간 초과 → 버림
+    job('saramin:4', '2026-11-16T09:00:00Z'), // 이번에 실패한 출처 → 이월, 예전 수집 시각 유지
+    job('saramin:5', '2026-11-16T09:00:00Z', '2026-11-10'), // 마감 → 버림
+  ] };
+  const { snapshot, carried } = carryOver(current, previous, { carryHours: 72, now });
+  assert.deepEqual(snapshot.jobs.map(j => [j.id, j.seenAt]), [['alio:1', undefined], ['jobkorea:1', '2026-11-17T05:00:00Z'], ['jobkorea:2', '2026-11-16T05:00:00Z'], ['saramin:4', '2026-11-16T09:00:00Z']]);
+  assert.deepEqual(carried, { jobkorea: 1, saramin: 1 });
+  assert.deepEqual(snapshot.sources.find(s => s.name === 'saramin'), { name: 'saramin', label: '사람인', total: 0, skipped: 0, collectedAt: '2026-11-16T09:00:00Z', carried: 1 });
+  assert.equal(carryOver(current, null).snapshot, current);
+});
+
+test('collection plan gives the focus families their share of search slots', async () => {
+  const { readPlan, schedule } = await import('./collection-plan.mjs');
+  const plan = readPlan({ focus: ['it', 'bad'], focusShare: 0.7, queries: { it: ['백엔드', '프론트엔드', '데이터', 'AI', 'DevOps', '보안', '게임', '임베디드'] } });
+  const list = schedule(plan, { slots: 10, defaults: ['사무', '금융', '마케팅', '영업'], hour: 0 });
+  assert.equal(list.length, 10);
+  assert.deepEqual(list.slice(7), ['사무', '금융', '마케팅']);
+  assert.equal(new Set(list).size, 10);
+  assert.deepEqual(schedule(readPlan(null), { slots: 2, defaults: ['사무', '금융', '마케팅'], hour: 1 }), ['금융', '마케팅']);
+});
