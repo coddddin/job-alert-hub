@@ -55,7 +55,7 @@
     "vitest": "5.1.0"
   },
   "bin": {
-    "kr-job-parser": "./dist/cli/bin.js"
+    "kr-job-parser": "dist/cli/bin.js"
   },
   "homepage": "https://github.com/coddddin/job-alert-hub/tree/main/packages/kr-job-parser#readme",
   "bugs": {
