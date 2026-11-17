@@ -1,5 +1,5 @@
-import { loadJobs } from './lib/load-jobs.js';
-import { defaults, matchJob, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
+import { isStale, loadJobs } from './lib/load-jobs.js';
+import { defaults, matchJob, matchesCatalogFilters, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
 import { siteLinks } from './lib/site-links.js';
@@ -7,6 +7,12 @@ import { siteLinks } from './lib/site-links.js';
 const data = await loadJobs({ search: location.search });
 const { jobs, today } = data;
 const live = data.mode === 'live';
+const sourceKey = job => job.id.split(':')[0];
+const sourceNames = new Map(data.sources.map(source => [source.name, source.label]));
+const sourceName = job => sourceNames.get(sourceKey(job)) ?? job.source;
+const catalog = live && jobs.some(job => sourceKey(job) === 'jobkorea');
+const kst = value => new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+const sourceLabel = source => `${source.label}${isStale(source.collectedAt) ? ' (오래된 데이터)' : ''}`;
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,10 +20,29 @@ const statusLabel = { match: '일치', review: '확인', exclude: '제외' };
 
 let state = initialState();
 let storageAvailable = true;
-try { state = sanitizeState(JSON.parse(localStorage.getItem(storageKey))); } catch { storageAvailable = false; }
+try {
+  const saved = JSON.parse(localStorage.getItem(storageKey));
+  state = sanitizeState(saved);
+  if (catalog && !saved?.filters) state.filters.region = 'all';
+} catch { storageAvailable = false; }
 let view = 'feed';
-let tab = 'match';
+let tab = catalog ? 'all' : 'match';
 let toastTimer;
+
+if (catalog) {
+  const select = $('#filter-source');
+  for (const job of jobs) {
+    const key = sourceKey(job);
+    if (Array.from(select.options).some(option => option.value === key)) continue;
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = sourceName(job);
+    select.append(option);
+  }
+  $('#source-filter').hidden = false;
+  document.querySelector('[data-tab="all"]').hidden = false;
+  select.addEventListener('change', render);
+}
 
 for (const select of [$('#filter-role'), $('#alert-role')]) {
   select.innerHTML = ROLES.map(role => `<option value="${role}">${role === 'all' ? '분야 전체' : role}</option>`).join('');
@@ -76,7 +101,7 @@ function row(job, result) {
   const calm = daysLeft(job) === null || result.status === 'exclude';
   return `<tr class="${result.status}">
     <td class="cell-dday"><span class="dday${calm ? ' calm' : ''}">${ddayLabel(job)}</span></td>
-    <td class="cell-title"><div class="title-row"><button class="job-title" data-detail="${job.id}">${escape(job.title)}</button><button class="save" data-save="${job.id}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆' : '◇'}</button></div><span class="sub">${escape(job.company)} · ${escape(job.role)} · ${job.skills.map(escape).join(', ')}${state.applications[job.id] ? ' · ' + escape(state.applications[job.id]) : ''}</span></td>
+    <td class="cell-title"><div class="title-row"><button class="job-title" data-detail="${escape(job.id)}">${escape(job.title)}</button><button class="save" data-save="${escape(job.id)}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆' : '◇'}</button></div><span class="sub">${[job.company, live && sourceName(job), job.role, job.skills.join(', '), state.applications[job.id]].filter(Boolean).map(escape).join(' · ')}</span></td>
     ${valueCell(job.raw.experience, describeExperience(job.parsed.experience), 'cell-exp')}
     ${valueCell(job.raw.location, describeLocation(job.parsed.location), 'cell-loc')}
     ${valueCell(job.raw.deadline, describeDeadline(job.parsed.deadline), 'cell-ddl')}
@@ -86,19 +111,24 @@ function row(job, result) {
 
 function render() {
   const results = jobs.map(job => ({ job, result: matchJob(job, state.filters) }));
-  const scoped = results.filter(({ job }) => view !== 'saved' || state.bookmarks.includes(job.id));
+  const source = $('#filter-source').value;
+  const scoped = results.filter(({ job }) =>
+    (source === 'all' || sourceKey(job) === source) &&
+    (view !== 'saved' || state.bookmarks.includes(job.id)));
+  const browse = scoped.filter(({ job }) => matchesCatalogFilters(job, state.filters));
   const count = status => scoped.filter(x => x.result.status === status).length;
   const match = count('match');
   const soon = scoped.filter(x => x.result.status === 'match' && daysLeft(x.job) !== null && daysLeft(x.job) <= 7).length;
   const rate = parseRate();
 
   $('#edition').textContent = live
-    ? `${koreanDate(today)} · 공공기관 공고 ${jobs.length}건 · 잡알리오 실데이터`
+    ? `${koreanDate(today)} · 수집 공고 ${jobs.length}건 · ${data.sources.map(sourceLabel).join(' · ')}`
     : `${koreanDate(today)} · 샘플 공고 ${jobs.length}건 (가상 데이터)`;
-  $('#feed-title').textContent = view === 'saved' ? `스크랩한 공고 ${scoped.length}건` : `공고 ${jobs.length}건 중, 지금 지원할 ${match}건`;
+  $('#feed-title').textContent = view === 'saved' ? `스크랩한 공고 ${scoped.length}건` : tab === 'all' ? `공고 ${browse.length}건` : `공고 ${scoped.length}건 중, 지금 지원할 ${match}건`;
   $('#feed-subtitle').textContent = view === 'saved'
     ? '스크랩한 공고에 현재 목록 필터를 적용했어요. 공고를 눌러 지원 상태를 기록해 보세요.'
-    : `경력·근무지·마감 표기를 해석해 ${state.filters.region === 'all' ? '' : state.filters.region + '에서 '}신입이 지원할 수 있는 공고만 남겼어요`;
+    : tab === 'all' ? '출처별 공고를 검색하고, 상세에서 지원 조건과 원문을 확인하세요.'
+    : `경력·근무지·마감 표기를 해석해 ${state.filters.region === 'all' ? '' : state.filters.region + '에서 '}신입이 지원할 수 있는 공고를 찾아요`;
   $('#match-count').textContent = match;
   $('#review-count').textContent = count('review');
   $('#parse-rate').textContent = `${rate.percent}%`;
@@ -107,9 +137,15 @@ function render() {
   $('#tab-match').textContent = match;
   $('#tab-review').textContent = count('review');
   $('#tab-exclude').textContent = count('exclude');
+  $('#tab-all').textContent = browse.length;
+  document.querySelectorAll('[data-tab]').forEach(button => {
+    const active = button.dataset.tab === tab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
   $('#saved-count').textContent = state.bookmarks.filter(id => jobs.some(job => job.id === id)).length;
 
-  const visible = scoped.filter(x => x.result.status === tab)
+  const visible = (tab === 'all' ? browse : scoped.filter(x => x.result.status === tab))
     .sort((a, b) => (daysLeft(a.job) ?? Infinity) - (daysLeft(b.job) ?? Infinity));
   $('#job-list').innerHTML = visible.length
     ? visible.map(x => row(x.job, x.result)).join('')
@@ -117,7 +153,7 @@ function render() {
   renderSiteLinks();
   $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 중 '해석 불가'가 아닌 비율이며, 정답과 맞는지(정확도)를 잰 값은 아닙니다. 다른 사이트 링크는 그 사이트의 검색 주소로 이동만 시키며, ≈ 표시는 그 사이트 분류가 더 넓어 조건이 일부 넓게 걸린다는 뜻입니다(링크에 마우스를 올리면 자세히).`;
   $('#colophon-note').textContent = live
-    ? `출처: ${data.sources.map(source => source.label).join(', ')} · 수집 ${new Date(data.collectedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+    ? `출처: ${data.sources.map(source => `${sourceLabel(source)} ${kst(source.collectedAt)} 수집`).join(', ')}`
     : `샘플 기준일 ${today} · 실제 공고 아님`;
 }
 
@@ -226,7 +262,7 @@ function factRow(label, value, { raw = null, note = '' } = {}) {
   if (!value) return '';
   const unknown = value === UNKNOWN;
   const body = unknown
-    ? `확인 필요 <small>공고 표기 “${escape(raw)}”를 해석하지 못했어요</small>`
+    ? `확인 필요 <small>${raw ? `공고 표기 “${escape(raw)}”를 해석하지 못했어요` : '수집한 공고에 표기가 없어 원문에서 확인해 주세요'}</small>`
     : `${escape(value)}${note ? `<small>${escape(note)}</small>` : ''}${raw && showRaw ? ` <small class="raw-inline">“${escape(raw)}”</small>` : ''}`;
   return `<div><dt>${label}</dt><dd${unknown ? ' class="unknown"' : ''}>${body}</dd></div>`;
 }
@@ -259,11 +295,14 @@ fillForm($('#filter-form'), state.filters);
 fillForm($('#alert-form'), state.notifications);
 $('#filter-form').addEventListener('input', () => { state.filters = readForm($('#filter-form')); persist(); render(); });
 $('#filter-form').addEventListener('submit', event => event.preventDefault());
-$('#reset-filters').addEventListener('click', () => { state.filters = { ...defaults }; fillForm($('#filter-form'), state.filters); persist(); render(); });
+$('#reset-filters').addEventListener('click', () => {
+  state.filters = { ...defaults, ...(catalog ? { region: 'all' } : {}) };
+  $('#filter-source').value = 'all';
+  fillForm($('#filter-form'), state.filters); persist(); render();
+});
 document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.view)));
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
   tab = button.dataset.tab;
-  document.querySelectorAll('[data-tab]').forEach(other => { other.classList.toggle('active', other === button); other.setAttribute('aria-selected', other === button); });
   render();
 }));
 $('#alert-form').addEventListener('input', preview);
@@ -284,7 +323,7 @@ $('#job-list').addEventListener('click', event => {
   const detail = event.target.closest('[data-detail]');
   if (!detail) return;
   const job = jobs.find(value => value.id === detail.dataset.detail);
-  const head = `<span class="eyebrow">${live ? escape(job.source) + ' · 실제 공고' : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${escape(job.company)} · ${escape(job.employment)}</p>`;
+  const head = `<span class="eyebrow">${live ? escape(sourceName(job)) : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${[job.company, job.employment].filter(Boolean).map(escape).join(' · ')}</p>`;
   const body = `${facts(job)}<p class="muted small">${escape(matchJob(job, state.filters).reason)}</p><label>내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label>`;
   // 내용은 스크롤되고, 지원 버튼은 아래에 고정해 언제든 누를 수 있게 한다.
   $('#dialog-content').innerHTML = `<div class="dialog-scroll">${head}${body}</div>${applyBlock(job)}`;

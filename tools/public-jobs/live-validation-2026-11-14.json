@@ -1,0 +1,69 @@
+{
+  "cases": 2,
+  "comparison": "whitespace-normalized exact text",
+  "fields": {
+    "company": {
+      "reviewed": 2,
+      "present": 2,
+      "extracted": 2,
+      "exactMatches": 2,
+      "verifiedAbsent": 0,
+      "falsePositives": 0,
+      "coverage": 1.0,
+      "accuracy": 1.0
+    },
+    "title": {
+      "reviewed": 2,
+      "present": 2,
+      "extracted": 2,
+      "exactMatches": 2,
+      "verifiedAbsent": 0,
+      "falsePositives": 0,
+      "coverage": 1.0,
+      "accuracy": 1.0
+    },
+    "location": {
+      "reviewed": 2,
+      "present": 2,
+      "extracted": 2,
+      "exactMatches": 2,
+      "verifiedAbsent": 0,
+      "falsePositives": 0,
+      "coverage": 1.0,
+      "accuracy": 1.0
+    },
+    "experience": {
+      "reviewed": 2,
+      "present": 2,
+      "extracted": 2,
+      "exactMatches": 2,
+      "verifiedAbsent": 0,
+      "falsePositives": 0,
+      "coverage": 1.0,
+      "accuracy": 1.0
+    },
+    "deadline": {
+      "reviewed": 2,
+      "present": 2,
+      "extracted": 2,
+      "exactMatches": 2,
+      "verifiedAbsent": 0,
+      "falsePositives": 0,
+      "coverage": 1.0,
+      "accuracy": 1.0
+    }
+  },
+  "observedDateKST": "2026-11-14",
+  "reviewMethod": "Agent manually compared independent DOM excerpts; not second-human adjudicated",
+  "sampleUrls": [
+    "https://www.jobkorea.co.kr/Recruit/GI_Read/48683167",
+    "https://www.jobkorea.co.kr/Recruit/GI_Read/49998092"
+  ],
+  "excluded": [
+    {
+      "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/50063965",
+      "httpStatus": 307
+    }
+  ],
+  "generalizableAccuracy": false
+}

@@ -27,3 +27,6 @@ Thumbs.db
 .idea/
 .vscode/
 apps/web/site/
+.venv-scrapling/
+__pycache__/
+.scrapling-local/
