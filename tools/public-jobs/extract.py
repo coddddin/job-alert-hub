@@ -91,10 +91,11 @@ def extract(page, url, observed_at):
         candidates["deadline"].append((record.get("validThrough"), "jsonld:validThrough"))
     # Headings are corroboration only; never interpret a generic page title as a job.
     if selected:
-        for field, selector in (("title", "h1"), ("company", "h2")):
-            for node in page.css(selector):
+        for field, selector in (("title", '(//h1[normalize-space(.) != ""])[1]'),
+                                ("company", '(//h1[normalize-space(.) != ""])[1]/preceding::h2[1]')):
+            for node in page.xpath(selector):
                 if text(node):
-                    candidates[field].append((text(node), f"dom:{selector}"))
+                    candidates[field].append((text(node), f"dom:header/{field}"))
     for field, label, component in (
         ("location", "근무지주소", "RecruitmentItem"),
         ("experience", "경력", "QualificationItem"),
@@ -106,9 +107,19 @@ def extract(page, url, observed_at):
             if structured and structured != resolve(dom)["value"]:
                 warnings.append(f"{field}:dom_overrides_jsonld")
             candidates[field] = dom
+    # Position cards use badges inside accordion buttons, not QualificationItem.
+    position_experience = []
+    for node in page.css('[data-sentry-component="PositionJobView"] button[aria-controls] [data-slot="badge"]'):
+        value = clean(node.get_all_text())
+        if re.match(r'^(신입|경력)', value):
+            position_experience.append((value, 'dom:position/experience'))
+    if position_experience:
+        candidates['experience'] = position_experience
+        if resolve(position_experience)['status'] == 'conflict':
+            warnings.append('experience:varies_by_position')
     # A labelled deadline is more precise than an unlabelled date anywhere on the page.
-    deadline_nodes = page.xpath('//*[not(*) and normalize-space(.)="마감일"]/parent::*/following-sibling::*')
-    dom_deadlines = [(text(node, True), "dom:마감일") for node in deadline_nodes if re.search(r"\d{4}[.-]\d{2}[.-]\d{2}|상시|채용시", text(node, True))]
+    deadline_nodes = page.xpath('//dt[normalize-space(.)="마감일"]/following-sibling::dd | //*[not(*) and not(self::dt) and normalize-space(.)="마감일"]/parent::*/following-sibling::*')
+    dom_deadlines = [(text(node, True), "dom:마감일") for node in deadline_nodes if re.search(r"\d{4}[.-]\d{2}[.-]\d{2}|상시|채용\s*시", text(node, True))]
     if dom_deadlines:
         candidates["deadline"] = dom_deadlines
     return {
@@ -119,6 +130,12 @@ def extract(page, url, observed_at):
     }
 
 
+class HttpStatusError(ValueError):
+    def __init__(self, status):
+        self.status = status
+        super().__init__(f"HTTP {status}; no retry or redirect")
+
+
 def fetch_page(url):
     from scrapling.fetchers import Fetcher
     canonical_url(url)
@@ -126,7 +143,7 @@ def fetch_page(url):
                        impersonate=None, stealthy_headers=False,
                        headers={"User-Agent": "JobAlertHubValidation/0.2"})
     if page.status != 200:
-        raise ValueError(f"HTTP {page.status}; no retry or redirect")
+        raise HttpStatusError(page.status)
     return page
 
 

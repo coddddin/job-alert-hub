@@ -4,6 +4,7 @@ on:
     paths:
       - 'tools/public-jobs/**'
       - 'apps/collector/**'
+      - 'apps/web/**'
       - '.github/workflows/public-jobs.yml'
 permissions:
   contents: read
