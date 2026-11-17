@@ -1,4 +1,4 @@
-import { loadJobs } from './lib/load-jobs.js';
+import { isStale, loadJobs } from './lib/load-jobs.js';
 import { defaults, matchJob, matchesCatalogFilters, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
@@ -11,6 +11,8 @@ const sourceKey = job => job.id.split(':')[0];
 const sourceNames = new Map(data.sources.map(source => [source.name, source.label]));
 const sourceName = job => sourceNames.get(sourceKey(job)) ?? job.source;
 const catalog = live && jobs.some(job => sourceKey(job) === 'jobkorea');
+const kst = value => new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+const sourceLabel = source => `${source.label}${isStale(source.collectedAt) ? ' (오래된 데이터)' : ''}`;
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -120,7 +122,7 @@ function render() {
   const rate = parseRate();
 
   $('#edition').textContent = live
-    ? `${koreanDate(today)} · 수집 공고 ${jobs.length}건 · ${data.sources.map(source => source.label).join(' · ')}`
+    ? `${koreanDate(today)} · 수집 공고 ${jobs.length}건 · ${data.sources.map(sourceLabel).join(' · ')}`
     : `${koreanDate(today)} · 샘플 공고 ${jobs.length}건 (가상 데이터)`;
   $('#feed-title').textContent = view === 'saved' ? `스크랩한 공고 ${scoped.length}건` : tab === 'all' ? `공고 ${browse.length}건` : `공고 ${scoped.length}건 중, 지금 지원할 ${match}건`;
   $('#feed-subtitle').textContent = view === 'saved'
@@ -151,7 +153,7 @@ function render() {
   renderSiteLinks();
   $('#footnote').textContent = `* 원문 표기는 kr-job-parser로 해석합니다. 해석하지 못한 항목은 버리지 않고 확인 필요로 남깁니다. 해석률은 ${live ? '수집한' : '샘플'} ${jobs.length}건의 경력·근무지·마감 ${rate.total}개 항목 중 '해석 불가'가 아닌 비율이며, 정답과 맞는지(정확도)를 잰 값은 아닙니다. 다른 사이트 링크는 그 사이트의 검색 주소로 이동만 시키며, ≈ 표시는 그 사이트 분류가 더 넓어 조건이 일부 넓게 걸린다는 뜻입니다(링크에 마우스를 올리면 자세히).`;
   $('#colophon-note').textContent = live
-    ? `출처: ${data.sources.map(source => source.label).join(', ')} · 수집 ${new Date(data.collectedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+    ? `출처: ${data.sources.map(source => `${sourceLabel(source)} ${kst(source.collectedAt)} 수집`).join(', ')}`
     : `샘플 기준일 ${today} · 실제 공고 아님`;
 }
 
@@ -260,7 +262,7 @@ function factRow(label, value, { raw = null, note = '' } = {}) {
   if (!value) return '';
   const unknown = value === UNKNOWN;
   const body = unknown
-    ? `확인 필요 <small>공고 표기 “${escape(raw)}”를 해석하지 못했어요</small>`
+    ? `확인 필요 <small>${raw ? `공고 표기 “${escape(raw)}”를 해석하지 못했어요` : '수집한 공고에 표기가 없어 원문에서 확인해 주세요'}</small>`
     : `${escape(value)}${note ? `<small>${escape(note)}</small>` : ''}${raw && showRaw ? ` <small class="raw-inline">“${escape(raw)}”</small>` : ''}`;
   return `<div><dt>${label}</dt><dd${unknown ? ' class="unknown"' : ''}>${body}</dd></div>`;
 }

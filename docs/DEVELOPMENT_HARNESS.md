@@ -48,3 +48,14 @@ README 수정, 파일 삭제, 유료 서비스 활성화 금지.
 - Git CLI push 인증 만료: GitHub 연결 도구로 tree/commit/branch를 게시하고 동일 tree hash 확인.
 - 실제 관측/참고 HTML은 git 제외 `.scrapling-local/`에만 저장. 합성 회귀 fixture와 집계만 커밋.
 - `docs/VALIDATION_PREVIEW_LOG.md`에 이번 반복 기록을 유지한다.
+
+## 2026-11-17 운영 결합 결정
+
+- 브랜치: PR #20(`1748ac3`)이 PR #18 head(`1ae11b8`)에 없어서 병합 커밋으로 가져왔다(같은 부모라 충돌·중복 없음).
+- 운영 경로: `collect.yml`은 ALIO 수집 성공 후 잡코리아 배치(`batch_live.py`, 40건·2초 간격)와
+  `merge-live.mjs`를 **선택 단계**(`continue-on-error`)로 실행한다. 결합 실패·빈 배치·형식 오류·
+  다른 기준일·중복 ID이면 ALIO 스냅샷을 그대로 두고 0으로 끝나 배포가 계속된다.
+- 신선도: 출처마다 `sources[].collectedAt`를 기록한다. 잡코리아 배치는 ALIO와 같은 KST 날짜일 때만
+  결합하고 이전 결과를 이월하지 않는다. 화면은 36시간이 지난 출처에 `(오래된 데이터)`를 붙인다.
+- 검증: `tools/public-jobs/verify-front.mjs` 한 번의 브라우저 흐름(로드 → 두 출처 → 출처·검색 필터 →
+  상세·원문 → 스크랩·새로고침 → 맞춤/알림 ALIO 전용 대비 회귀). 결합 단위 테스트는 실패 시 ALIO 보존만 확인.

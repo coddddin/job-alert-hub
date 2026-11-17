@@ -32,3 +32,4 @@ jobs:
           python tools/public-jobs/extract.py --html tools/public-jobs/fixtures/detail.html --url https://www.jobkorea.co.kr/Recruit/GI_Read/10000001 --out .scrapling-local/batch.json
           node tools/public-jobs/import.mjs --input .scrapling-local/batch.json --out .scrapling-local/imported
           node tools/public-jobs/verify-import.mjs .scrapling-local/imported/snapshot.json
+      - run: node --test tools/public-jobs/merge-live.test.mjs
