@@ -3,13 +3,16 @@
  * 우선순위: 출처 코드 > 출처 태그 > 규칙 > 미분류. 애매하면 미분류로 두어 맞춤·알림에서 뺀다.
  */
 import type { CollectedJob, JobClassification } from '../job.js';
+import { NCS_FAMILIES, type FamilyId } from './taxonomy.js';
 
-export type Classified = Pick<CollectedJob, 'kind' | 'role'> & { readonly classification: JobClassification };
+export { FAMILY_IDS, NCS_FAMILIES, type FamilyId } from './taxonomy.js';
+export type Classified = Pick<CollectedJob, 'kind' | 'role'> & { readonly families: readonly FamilyId[]; readonly classification: JobClassification };
 
 /** 분류 근거가 없을 때. 화면은 전체 탭에만 보이고 맞춤·알림에서 뺀다. */
 export const UNCLASSIFIED: Classified = Object.freeze({
   kind: 'other',
   role: '',
+  families: Object.freeze([]),
   classification: Object.freeze({ method: 'none', version: 'none', evidence: Object.freeze([]) }),
 });
 
@@ -19,9 +22,12 @@ export const UNCLASSIFIED: Classified = Object.freeze({
  */
 export function classifyNcs(fields: readonly string[]): Classified {
   const isIt = fields.includes('정보통신');
+  // 공고 하나에 분야가 여럿이면 직무군도 여럿이다(예: 사무 + 정보통신).
+  const families = [...new Set(fields.map((field) => NCS_FAMILIES[field] ?? 'etc'))];
   return {
     kind: isIt ? 'development' : 'other',
     role: isIt ? '전산·IT' : (fields[0] ?? '기타'),
+    families: families.length ? families : ['etc'],
     classification: {
       method: 'source-code',
       version: 'ncs-map/1',
