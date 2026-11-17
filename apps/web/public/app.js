@@ -10,6 +10,10 @@ const live = data.mode === 'live';
 const sourceKey = job => job.id.split(':')[0];
 const sourceNames = new Map(data.sources.map(source => [source.name, source.label]));
 const sourceName = job => sourceNames.get(sourceKey(job)) ?? job.source;
+// 목록에서 한눈에 출처를 구분하는 짧은 이름. 새 출처는 여기에 추가하고, 없으면 출처 라벨의 앞부분을 쓴다.
+const SOURCE_TAGS = { alio: '공공기관', jobkorea: '잡코리아', saramin: '사람인', wanted: '원티드' };
+const sourceTag = job => SOURCE_TAGS[sourceKey(job)] ?? sourceName(job).replace(/\s*\(.*\)$/, '');
+const sourceBadge = job => `<span class="source-tag" data-source="${escape(sourceKey(job))}">${escape(sourceTag(job))}</span>`;
 const catalog = live && jobs.some(job => sourceKey(job) === 'jobkorea');
 const kst = value => new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 const sourceLabel = source => `${source.label}${isStale(source.collectedAt) ? ' (오래된 데이터)' : ''}`;
@@ -36,7 +40,7 @@ if (catalog) {
     if (Array.from(select.options).some(option => option.value === key)) continue;
     const option = document.createElement('option');
     option.value = key;
-    option.textContent = sourceName(job);
+    option.textContent = sourceTag(job);
     select.append(option);
   }
   $('#source-filter').hidden = false;
@@ -101,7 +105,7 @@ function row(job, result) {
   const calm = daysLeft(job) === null || result.status === 'exclude';
   return `<tr class="${result.status}">
     <td class="cell-dday"><span class="dday${calm ? ' calm' : ''}">${ddayLabel(job)}</span></td>
-    <td class="cell-title"><div class="title-row"><button class="job-title" data-detail="${escape(job.id)}">${escape(job.title)}</button><button class="save" data-save="${escape(job.id)}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆' : '◇'}</button></div><span class="sub">${[job.company, live && sourceName(job), job.role, job.skills.join(', '), state.applications[job.id]].filter(Boolean).map(escape).join(' · ')}</span></td>
+    <td class="cell-title"><div class="title-row">${live ? sourceBadge(job) : ''}<button class="job-title" data-detail="${escape(job.id)}">${escape(job.title)}</button><button class="save" data-save="${escape(job.id)}" aria-pressed="${saved}" aria-label="${escape(job.company)} 스크랩">${saved ? '◆' : '◇'}</button></div><span class="sub">${[job.company, job.role, job.skills.join(', '), state.applications[job.id]].filter(Boolean).map(escape).join(' · ')}</span></td>
     ${valueCell(job.raw.experience, describeExperience(job.parsed.experience), 'cell-exp')}
     ${valueCell(job.raw.location, describeLocation(job.parsed.location), 'cell-loc')}
     ${valueCell(job.raw.deadline, describeDeadline(job.parsed.deadline), 'cell-ddl')}
@@ -323,7 +327,7 @@ $('#job-list').addEventListener('click', event => {
   const detail = event.target.closest('[data-detail]');
   if (!detail) return;
   const job = jobs.find(value => value.id === detail.dataset.detail);
-  const head = `<span class="eyebrow">${live ? escape(sourceName(job)) : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${[job.company, job.employment].filter(Boolean).map(escape).join(' · ')}</p>`;
+  const head = `<span class="eyebrow">${live ? `${sourceBadge(job)} ${escape(sourceName(job))}` : 'FICTIONAL JOB · 샘플 공고'}</span><h2>${escape(job.title)}</h2><p class="muted">${[job.company, job.employment].filter(Boolean).map(escape).join(' · ')}</p>`;
   const body = `${facts(job)}<p class="muted small">${escape(matchJob(job, state.filters).reason)}</p><label>내 지원 상태<select id="application-status">${['검토 중', '지원 예정', '지원 완료', '합격', '불합격', '지원 철회'].map(status => `<option${(state.applications[job.id] || '검토 중') === status ? ' selected' : ''}>${status}</option>`).join('')}</select></label>`;
   // 내용은 스크롤되고, 지원 버튼은 아래에 고정해 언제든 누를 수 있게 한다.
   $('#dialog-content').innerHTML = `<div class="dialog-scroll">${head}${body}</div>${applyBlock(job)}`;
