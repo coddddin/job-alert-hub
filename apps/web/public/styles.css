@@ -242,3 +242,17 @@ h1, h2, .job-title, .facts dd { word-break: keep-all; overflow-wrap: anywhere; }
 .calendar-frame iframe { display: block; width: 100%; min-width: 890px; height: 1000px; border: 0; }
 .calendar-frame iframe.week { height: 640px; }
 .calendar-source { margin-top: 10px; }
+
+/* 첫 방문 질문 */
+.onboarding { overflow: auto; padding: 32px; }
+.onboarding fieldset { border: 0; padding: 0; margin: 18px 0 0; }
+.onboarding legend { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.onboarding legend small { font-weight: 400; color: var(--mute); }
+.choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.choice-grid.three { grid-template-columns: repeat(3, 1fr); }
+dialog .choice-grid label { margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-weight: 500; cursor: pointer; }
+dialog .choice-grid label:has(input:checked) { border-color: var(--ink); background: var(--card); box-shadow: inset 0 0 0 1px var(--ink); }
+.choice-grid input { accent-color: var(--accent); margin: 0; }
+.form-error { color: var(--accent); font-size: 13px; min-height: 1em; margin: 8px 0 0; }
+.onboarding-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+@media (max-width: 520px) { .onboarding { padding: 24px 16px; } .choice-grid.three { grid-template-columns: 1fr; } }

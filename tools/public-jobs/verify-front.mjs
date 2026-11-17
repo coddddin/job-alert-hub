@@ -27,6 +27,17 @@ async function serve(file) {
   return { server, url: `http://127.0.0.1:${server.address().port}/` };
 }
 const rows = page => page.locator('#job-list tr:not(.empty)').count();
+/** 첫 방문 질문에 답한다. families는 화면 라벨, region은 시·도 또는 'all'. */
+async function answer(page, { families, career, region }) {
+  await page.waitForSelector('#onboarding[open]');
+  for (const box of await page.locator('#onboarding-families input').all()) await box.setChecked(false);
+  for (const label of families) await page.locator('#onboarding-families label', { hasText: label }).locator('input').check();
+  await page.locator(`#onboarding-careers input[value="${career}"]`).check();
+  await page.selectOption('#onboarding-region', region);
+  await page.click('#onboarding-form button[type="submit"]');
+  await page.waitForSelector('#onboarding', { state: 'hidden' });
+}
+const IT_NEW_SEOUL = { families: ['IT·개발'], career: 'new', region: '서울' };
 const shot = (page, name) => values.shots && page.screenshot({ path: path.join(values.shots, `${name}.png`), fullPage: false });
 
 const browser = await chromium.launch();
@@ -37,12 +48,13 @@ try {
   const ref = await (await browser.newContext()).newPage();
   await ref.goto(alioOnly.url);
   await ref.waitForSelector('#job-list tr');
+  await answer(ref, IT_NEW_SEOUL);
   assert.equal(await ref.locator('[data-tab="match"]').getAttribute('aria-selected'), 'true');
   assert.equal(await ref.locator('#source-filter').isHidden(), true);
   const refMatch = Number(await ref.textContent('#tab-match'));
   await ref.click('[data-view="alerts"]');
   const refAlerts = await ref.locator('#alert-preview li:not(.muted)').count();
-  log.alioOnly = { startTab: 'match', sourceFilterHidden: true, match: refMatch, alerts: refAlerts };
+  log.alioOnly = { profile: 'IT·개발/신입/서울', startTab: 'match', sourceFilterHidden: true, match: refMatch, alerts: refAlerts };
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
@@ -50,6 +62,13 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(combined.url);
   await page.waitForSelector('#job-list tr');
+  // 0. 첫 방문: 질문이 열리고, 건너뛰면 전체 공고를 둘러본다.
+  assert.equal(await page.locator('#onboarding').isVisible(), true);
+  await shot(page, '0-onboarding');
+  await page.click('#onboarding-skip');
+  // Skipping applies the "browse everything" profile when the dialog's close event fires; wait for it
+  // (otherwise the default IT filter can still be in place for a moment).
+  await page.waitForFunction(() => document.querySelector('#filter-family')?.value === 'all');
 
   // 1. Load: both sources, with per-source collection time and no stale marker.
   const edition = await page.textContent('#edition');
@@ -103,49 +122,67 @@ try {
   assert.ok(await page.locator(`[data-detail="${target.id}"]`).isVisible());
   log.scrap = { savedCount: 1, persistedAfterReload: true };
 
-  // 6. Personal tab and alerts: ALIO results are unchanged, and only rule-classified JobKorea
-  //    development jobs join them (unclassified or non-development JobKorea rows never do).
+  // 6. Personal tab and alerts with the same first-visit answers as ALIO-only: ALIO results are unchanged,
+  //    and only rule-classified JobKorea IT jobs join them (unclassified or non-IT rows never do).
+  const byId = new Map(snapshot.jobs.map(job => [job.id, job]));
+  const jobkoreaRows = page => page.locator('#job-list [data-detail^="jobkorea:"]').evaluateAll(rows => rows.map(row => row.dataset.detail));
+  const assertRuleIt = ids => {
+    for (const id of ids) {
+      const job = byId.get(id);
+      assert.equal(job.kind, 'development', id);
+      assert.ok(job.families?.includes('it'), id);
+      assert.equal(job.classification?.method, 'rule', id);
+      assert.ok(!job.classification.nonHiring, id);
+    }
+  };
   await page.click('[data-view="feed"]');
-  await page.click('#reset-filters');
-  await page.selectOption('#filter-region', '서울');
-  await page.click('[data-tab="match"]');
+  await page.click('#open-onboarding');
+  await answer(page, IT_NEW_SEOUL);
+  assert.equal(await page.locator('[data-tab="match"]').getAttribute('aria-selected'), 'true');
   const match = Number(await page.textContent('#tab-match'));
   const alioInMatch = await page.locator('#job-list [data-detail^="alio:"]').count();
-  const matched = await page.locator('#job-list [data-detail^="jobkorea:"]').evaluateAll(rows => rows.map(row => row.dataset.detail));
+  const matched = await jobkoreaRows(page);
   assert.equal(alioInMatch, refMatch);
   assert.equal(match, refMatch + matched.length);
-  const byId = new Map(snapshot.jobs.map(job => [job.id, job]));
-  for (const id of matched) {
-    const job = byId.get(id);
-    assert.equal(job.kind, 'development', id);
-    assert.equal(job.classification?.method, 'rule', id);
-    assert.ok(!job.classification.nonHiring, id);
-  }
+  assertRuleIt(matched);
   await page.click('[data-view="alerts"]');
   const alerts = await page.locator('#alert-preview li:not(.muted)').count();
   assert.ok(alerts >= refAlerts, `${alerts} < ${refAlerts}`);
-  log.regression = { match, alioInMatch, refMatch, alerts, refAlerts, jobkoreaInMatch: matched.length,
-    jobkoreaMatched: matched.map(id => ({ id, role: byId.get(id).role, evidence: byId.get(id).classification.evidence.slice(0, 3) })) };
+  log.regression = { match, alioInMatch, refMatch, alerts, refAlerts, jobkoreaInMatch: matched.length };
 
-  // 7. Any region: a JobKorea development job that new graduates may apply to reaches the personal tab,
+  // 7. A non-IT user: only their job family reaches the personal tab, and the answer survives a reload.
+  await page.click('[data-view="feed"]');
+  await page.click('#open-onboarding');
+  await answer(page, { families: ['의료·보건·복지'], career: 'any', region: 'all' });
+  const medical = await page.locator('#job-list [data-detail]').evaluateAll(buttons => buttons.map(b => b.dataset.detail));
+  assert.ok(medical.length > 0);
+  assert.ok(medical.every(id => byId.get(id)?.families?.includes('medical')), 'non-medical job in personal tab');
+  await shot(page, '7-medical');
+  await page.reload();
+  await page.waitForSelector('#job-list tr');
+  assert.equal(await page.locator('#onboarding').isVisible(), false);
+  assert.match(await page.textContent('#filter-family'), /내 관심 직무 \(의료·보건·복지\)/);
+  log.personalized = { profile: '의료·보건·복지/상관없음/전국', match: medical.length, allMedical: true, persistedAfterReload: true };
+
+  // 8. IT, new graduate, any region: a JobKorea IT job open to new graduates reaches the personal tab,
   //    and its detail shows the source. (Seoul alone may have none: many are experienced-only.)
   await page.click('[data-view="feed"]');
-  await page.selectOption('#filter-region', 'all');
-  await page.click('[data-tab="match"]');
-  const anyRegion = await page.locator('#job-list [data-detail^="jobkorea:"]').evaluateAll(rows => rows.map(row => row.dataset.detail));
-  const open = snapshot.jobs.filter(job => job.id.startsWith('jobkorea:') && job.kind === 'development' &&
-    /경력무관|신입/u.test(job.raw?.experience ?? ''));
-  for (const id of anyRegion) assert.equal(byId.get(id).kind, 'development', id);
+  await page.click('#open-onboarding');
+  await answer(page, { ...IT_NEW_SEOUL, region: 'all' });
+  const anyRegion = await jobkoreaRows(page);
+  assertRuleIt(anyRegion);
+  const open = snapshot.jobs.filter(job => job.id.startsWith('jobkorea:') && job.families?.includes('it') &&
+    !job.classification?.nonHiring && /경력무관|신입/u.test(job.raw?.experience ?? ''));
   if (open.length) {
-    assert.ok(anyRegion.length >= 1, 'JobKorea development jobs missing from the personal tab');
+    assert.ok(anyRegion.length >= 1, 'JobKorea IT jobs missing from the personal tab');
     await page.click(`[data-detail="${anyRegion[0]}"]`);
     await page.waitForSelector('#job-dialog[open]');
     assert.ok((await page.textContent('#dialog-content')).includes('잡코리아'));
     await page.click('#close-dialog');
   } else assert.equal(anyRegion.length, 0);
-  log.jobkoreaMatch = { region: 'all', jobkoreaInMatch: anyRegion.length, openDevelopmentJobs: open.length,
+  log.jobkoreaMatch = { profile: 'IT·개발/신입/전국', jobkoreaInMatch: anyRegion.length, openItJobs: open.length,
     roles: anyRegion.map(id => byId.get(id).role) };
-  await shot(page, '7-match-jobkorea');
+  await shot(page, '8-match-jobkorea');
 
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ ok: true, ...log }, null, 2));

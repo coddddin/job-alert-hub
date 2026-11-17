@@ -4,7 +4,7 @@ import { classifyKeywords, type JobSignals } from '../src/classify/index.js';
 const signals = (jobNames: string[], skills: string[] = [], duties: string | null = null): JobSignals => ({ jobNames, skills, duties });
 const pick = (title: string, s?: JobSignals) => {
   const r = classifyKeywords(title, s);
-  return { kind: r.kind, role: r.role, method: r.classification.method, nonHiring: r.classification.nonHiring ?? false };
+  return { kind: r.kind, role: r.role, families: r.families, method: r.classification.method, nonHiring: r.classification.nonHiring ?? false };
 };
 
 // 실제 잡코리아 표본에서 본 경계 사례를 합성 값으로 옮긴 것. 판정 순서(설계 4절)를 고정한다.
@@ -15,10 +15,21 @@ describe('keyword rules (keyword-rules/1)', () => {
   });
   it('flags training programs before anything else, even with dev skills', () => {
     expect(pick('AI 무료 취업교육생과정 모집', signals(['풀스택', '백엔드'], ['Java', 'Spring'])))
-      .toEqual({ kind: 'other', role: '기타', method: 'rule', nonHiring: true });
+      .toEqual({ kind: 'other', role: '기타', families: [], method: 'rule', nonHiring: true });
+    expect(pick('투자비 없는 사업점(지사) 모집', signals(['영업사원']))).toMatchObject({ nonHiring: true });
+  });
+  it('needs a strong phrase without hiring counter-signals to call a posting non-hiring', () => {
+    expect(pick('교육과정 개발자 채용', signals(['이러닝 콘텐츠 개발']))).toMatchObject({ nonHiring: false });
+    expect(pick('교육생 관리 정규직 채용', signals(['교육운영']))).toMatchObject({ nonHiring: false });
+    expect(pick('[국비최대무료/100프로채용연계] 풀스택 과정', signals(['IT학원']))).toMatchObject({ nonHiring: true });
+    // 국비 교육기관이 직원을 뽑는 공고는 채용이다("국비"만으로는 정하지 않는다).
+    expect(pick('[국비지원 교육센터] 교육상담원 모집합니다', signals(['국비교육', '교육상담']))).toMatchObject({ nonHiring: false });
+    expect(pick('전공의(인턴) 모집', signals(['병원', '의료']))).toMatchObject({ nonHiring: false, kind: 'other' });
+    expect(pick('부동산 개발 사업 담당', signals(['부동산 개발', '개발자']))).toMatchObject({ kind: 'other' });
   });
   it('marks non-development jobs when negative keywords dominate, and leaves ties unclassified', () => {
-    expect(pick('물류 알바관리자', signals(['물류센터', '배송', '창고관리']))).toMatchObject({ kind: 'other', method: 'rule', nonHiring: false });
+    // 비IT 직무군 사전은 후속 단계라 직무군은 비워 둔다(화면에서 분류 대기).
+    expect(pick('물류 알바관리자', signals(['물류센터', '배송', '창고관리']))).toMatchObject({ kind: 'other', families: [], method: 'rule', nonHiring: false });
     expect(pick('데이터 담당', signals(['영업지원'], ['Python']))).toMatchObject({ method: 'none' });
   });
   it('does not classify postings that bundle several jobs', () => {
@@ -28,7 +39,7 @@ describe('keyword rules (keyword-rules/1)', () => {
     expect(pick('IT 교육 공고', signals(['개발자'], [], '교육일정 직무별 상이, 상세요강 참고'))).toMatchObject({ method: 'none' });
   });
   it('assigns a single role confirmed by two fields', () => {
-    expect(pick('백엔드 엔지니어(신입)', signals(['신입 백엔드 엔지니어']))).toMatchObject({ kind: 'development', role: '백엔드', method: 'rule' });
+    expect(pick('백엔드 엔지니어(신입)', signals(['신입 백엔드 엔지니어']))).toMatchObject({ kind: 'development', role: '백엔드', families: ['it'], method: 'rule' });
     expect(pick('Android native개발자', signals(['모바일앱개발'], ['Kotlin']))).toMatchObject({ role: '모바일' });
   });
   it('uses 풀스택 only for frontend plus backend, and the title role to break other ties', () => {

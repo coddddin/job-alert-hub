@@ -28,6 +28,7 @@ function pattern(keyword: string): RegExp {
 const compile = (words: readonly string[]) => words.map(keyword => ({ keyword, re: pattern(keyword) }));
 const dictionary = {
   nonHiring: compile(rules.nonHiring),
+  nonHiringCounter: compile(rules.nonHiringCounter),
   varies: compile(rules.varies),
   development: compile(rules.development),
   negative: compile(rules.negative),
@@ -59,6 +60,8 @@ function find(items: readonly (readonly [Field, string])[], words: ReturnType<ty
 const evidence = (hits: readonly Hit[]) => hits.slice(0, 8).map(hit => `${hit.field}:${hit.keyword}`);
 const rule = (kind: Classified['kind'], role: string, hits: readonly Hit[], nonHiring = false): Classified => ({
   kind, role,
+  // IT만 직무군을 확정한다. 비IT 직무군 사전은 아직 없어 빈 목록(화면에서 "분류 대기")으로 둔다.
+  families: kind === 'development' ? ['it'] : [],
   classification: { method: 'rule', version: KEYWORD_RULES_VERSION, evidence: evidence(hits), ...(nonHiring ? { nonHiring: true } : {}) },
 });
 const undecided = (hits: readonly Hit[]): Classified => ({
@@ -72,9 +75,13 @@ export function classifyKeywords(title: string, signals: JobSignals | undefined)
   const items = texts(title, signals);
   const notSkill = items.filter(([field]) => field !== 'skill');
 
-  // 1. 교육생·수강생 모집처럼 채용이 아닌 공고. 스킬 목록은 보지 않는다(교육 과목일 수 있다).
+  // 1. 교육생·수강생·사업점 모집처럼 채용이 아닌 공고. 강한 표현이 있고, 제목·비고에 채용·정규직·연봉 같은
+  //    반대 신호가 없을 때만 정한다("채용연계" 교육은 반대 신호가 아니다). 스킬 목록은 보지 않는다(교육 과목일 수 있다).
   const nonHiring = find(notSkill, dictionary.nonHiring);
-  if (nonHiring.length) return rule('other', '기타', nonHiring, true);
+  const stated = items.filter(([field]) => field === 'title' || field === 'duty')
+    .map(([field, value]) => [field, rules.nonHiringCounterExcept.reduce((text, phrase) => text.replace(pattern(phrase), ''), value)] as const);
+  const counter = find(stated, dictionary.nonHiringCounter);
+  if (nonHiring.length && !counter.length) return rule('other', '기타', nonHiring, true);
 
   const whole = items.map(([, value]) => value).join(' ');
   const negative = find(items, dictionary.negative)

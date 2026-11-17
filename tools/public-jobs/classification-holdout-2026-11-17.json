@@ -1,5 +1,5 @@
 {
-  "scope": "잡코리아 규칙 직무 분류(keyword-rules/1) 검증 집계. 2026-11-17 KST, 실제 공개 상세 5회차(회당 40건 이하, 2.5초 간격, UA JobAlertHubValidation/0.2). 개별 원문·라벨·ID는 .scrapling-local/classify 에만 둔다.",
+  "scope": "잡코리아 규칙 직무 분류(keyword-rules/1) 검증 집계. 2026-11-17 KST, 실제 공개 상세 9회차(회당 40건 이하, 2.5초 간격, UA JobAlertHubValidation/0.2). 개별 원문·라벨·ID는 .scrapling-local/classify 에만 둔다.",
   "reviewMethod": "코드 작성 에이전트가 제목·모집분야·직무 키워드·스킬 원문을 보고 라벨링. holdout은 고정된 사전으로 예측을 보기 전에 라벨을 먼저 적었다(blind). 독립된 사람의 검수가 아니다.",
   "labelScheme": {
     "dev": "단일 개발·IT 직무 공고(웹·앱·서버·AI·DBA·인프라 포함)",
@@ -11,47 +11,195 @@
   },
   "sampling": {
     "general": "잡코리아 기본 목록 joblist?menucode=search(123건)에서 시드별 무작위",
-    "dev": "검색 목록(개발자·백엔드·프론트엔드·소프트웨어, holdout4는 엔지니어·IT·서버·앱개발·데이터)에서 무작위. 이전 회차 ID는 제외",
-    "requests": { "detailAttempted": 198, "detailHttp200": 192, "redirectsExcluded": 6, "blockedOrStopped": 0, "listingPages": 34,
-      "structureProbes": "상세 3건·목록 2건(신호 위치 확인용, 평가 미사용)" }
+    "dev": "검색 목록에서 무작위, 이전 회차 ID 제외. 검색어: train~holdout3 개발자·백엔드·프론트엔드·소프트웨어 / holdout4 엔지니어·IT·서버·앱개발·데이터 / holdout5 웹개발·자바·파이썬·국비 / holdout6 프로그래머·교육생·인턴·SW / holdout7 프로그래머·PLC·임베디드·QA·게임 / holdout8 개발·엔지니어·하드웨어·펌웨어",
+    "requests": {
+      "detailAttempted": 349,
+      "detailHttp200": 339,
+      "redirectsExcluded": 10,
+      "blockedOrStopped": 0,
+      "listingPages": 55,
+      "structureProbes": "상세 3건·목록 2건(신호 위치 확인용, 평가 미사용)"
+    }
   },
   "protocol": "사전을 고칠 때마다 sha256을 기록하고 그 버전으로는 새 회차·새 시드 holdout에서만 잰다. 고친 뒤 이전 holdout은 개발용 자료로 돌린다.",
   "history": [
     {
       "dictionarySha256": "4a9ff304a8a29a221edfa413ee68c2a1a747b2201504c3bde2c924a9b41a6e50",
-      "developedOn": ["train1 (seed 101, 37건)"],
+      "developedOn": [
+        "train1 (seed 101, 37건)"
+      ],
       "holdout": "holdout1 (seed 202, 39건)",
-      "result": { "predictedDev": 8, "tp": 7, "fpNotDev": 0, "fpMixed": 1, "fn": 0, "precisionStrict": 0.875, "precisionLenient": 1.0, "recall": 1.0, "unclassified": "2/39" },
+      "result": {
+        "predictedDev": 8,
+        "tp": 7,
+        "fpNotDev": 0,
+        "fpMixed": 1,
+        "fn": 0,
+        "precisionStrict": 0.875,
+        "precisionLenient": 1.0,
+        "recall": 1.0,
+        "unclassified": "2/39"
+      },
       "verdict": "불합격(엄격 87.5%). 여러 부문 공채 공고를 개발로 분류 → 부문별·공채 제목을 미분류로"
     },
     {
       "dictionarySha256": "fdff6142250162b12e7afe74e93b2a945e05e7f3a5fea1f0ea0b05b4828f539d",
       "holdout": "holdout2 (seed 404, 새 목록, 40건)",
-      "result": { "predictedDev": 12, "tp": 12, "fpNotDev": 0, "fpMixed": 0, "fn": 5, "precisionStrict": 1.0, "recall": 0.706, "unclassified": "12/40", "roleCorrect": "10/10", "nonHiring": "2/2" },
+      "result": {
+        "predictedDev": 12,
+        "tp": 12,
+        "fpNotDev": 0,
+        "fpMixed": 0,
+        "fn": 5,
+        "precisionStrict": 1.0,
+        "recall": 0.706,
+        "unclassified": "12/40",
+        "roleCorrect": "10/10",
+        "nonHiring": "2/2"
+      },
       "verdict": "정밀도 합격. 재현율 보완(프론트앤드 등 표기 변형, Software Engineer, 클라우드 인프라 용어)"
     },
     {
       "dictionarySha256": "00b1c3535e3fce06e0c4351051a5233afd82a36d1a2cee928e6eb29678d6ac15",
       "holdout": "holdout3 (seed 505, 새 목록, 38건)",
-      "result": { "predictedDev": 20, "tp": 18, "fpNotDev": 0, "fpMixed": 2, "fn": 1, "precisionStrict": 0.9, "precisionLenient": 1.0, "recall": 0.947, "unclassified": "2/38", "nonHiring": "1/1" },
+      "result": {
+        "predictedDev": 20,
+        "tp": 18,
+        "fpNotDev": 0,
+        "fpMixed": 2,
+        "fn": 1,
+        "precisionStrict": 0.9,
+        "precisionLenient": 1.0,
+        "recall": 0.947,
+        "unclassified": "2/38",
+        "nonHiring": "1/1"
+      },
       "verdict": "불합격(엄격 90%). 제목에 '개발/사업기획/PM/영업'처럼 직무를 나열한 공고 2건. 사이트 직무 키워드만으로 역할을 정해 PHP 웹 공고가 임베디드가 된 오류 1건 → 나열 제목·PM 제목 미분류, 키워드만 있는 역할은 전산·IT"
     },
     {
       "dictionarySha256": "29b37a1c0c91b2fe81d9ed14cbd965cee9340c81d1d588b01e62e3e84c78b0d0",
-      "final": true,
       "holdout": "holdout4 (seed 606, 다른 검색어, 38건)",
-      "result": { "predictedDev": 8, "tp": 8, "fpNotDev": 0, "fpMixed": 0, "fn": 2, "unsure": 1, "precisionStrict": 1.0, "precisionWilson95Lower": 0.676, "recall": 0.8, "unclassified": "6/38", "unclassifiedRate": 0.158, "roleCorrect": "4/4", "nonHiring": "2/2", "nonHiringFalsePositive": 0 },
-      "verdict": "합격 기준(정밀도 95% 이상)을 표본에서 충족. 다만 개발 예측 8건이라 신뢰구간 하한은 67.6%로 넓다"
+      "result": {
+        "predictedDev": 8,
+        "tp": 8,
+        "fpNotDev": 0,
+        "fpMixed": 0,
+        "fn": 2,
+        "unsure": 1,
+        "precisionStrict": 1.0,
+        "precisionWilson95Lower": 0.676,
+        "recall": 0.8,
+        "unclassified": "6/38",
+        "unclassifiedRate": 0.158,
+        "roleCorrect": "4/4",
+        "nonHiring": "2/2",
+        "nonHiringFalsePositive": 0
+      },
+      "verdict": "표본에서는 기준 충족(8/8). 이후 base 병합(families)과 채용 아님 기준 변경(설계 9절)으로 사전이 바뀌어 다시 측정"
+    },
+    {
+      "dictionarySha256": "3fd608c41e1d8f2fb740e99ee657d0d0d0f97481a609e98f920e8bbd6c3efec1",
+      "change": "families 추가, 채용 아님 = 강한 표현 + 반대 신호(채용·정규직·연봉) 없음, 부동산·재개발·교재 음성",
+      "holdout": "holdout5 (seed 707, 40건)",
+      "result": {
+        "predictedDev": 15,
+        "tp": 15,
+        "fpNotDev": 0,
+        "fn": 3,
+        "unsure": 2,
+        "precisionStrict": 1.0,
+        "recall": 0.833,
+        "nonHiringTp": 1,
+        "nonHiringFp": 3
+      },
+      "verdict": "IT는 통과, 채용 아님 불합격(국비 교육기관의 직원 채용 3건을 채용 아님으로). '국비' 단독 제외, 직원 직무명(강사·상담원·담당자 등)을 반대 신호로"
+    },
+    {
+      "dictionarySha256": "feb963208a90683ca0b367da6f19a5e7187021041d78c0d507ab9f88e3e5a0e3",
+      "holdout": "holdout6 (seed 808, 40건)",
+      "result": {
+        "predictedDev": 12,
+        "tp": 8,
+        "fpNotDev": 4,
+        "fn": 4,
+        "unsure": 2,
+        "precisionStrict": 0.667,
+        "recall": 0.667,
+        "nonHiringFp": 0
+      },
+      "verdict": "불합격. 1차부터 있던 '프로그래머'가 PLC·CAM 프로그래머(제어·생산 직무)에 걸림. 이전 holdout 통과는 표본에 그런 공고가 없었던 덕분 → PLC·CAM·CNC·레이저·제어설계·전장설계·자동제어·금속가공 음성"
+    },
+    {
+      "dictionarySha256": "eebf407b12347e7d047112ca21a79fb51a1fcf66fe6f43b2619746a5bcb1baf0",
+      "holdout": "holdout7 (seed 909, 38건, PLC 등 경계 검색어)",
+      "result": {
+        "predictedDev": 13,
+        "tp": 12,
+        "fpNotDev": 1,
+        "fn": 4,
+        "precisionStrict": 0.923,
+        "recall": 0.75,
+        "plcPostingsCorrect": "9/9"
+      },
+      "verdict": "불합격(임베디드 하드웨어 개발 리더 1건) → 하드웨어·Hardware·회로설계·PCB·SMPS 음성"
+    },
+    {
+      "dictionarySha256": "03238557ffd759fd897b5bffdbb4e0a92694a702493ecd63d7f6bd02046e676e",
+      "final": true,
+      "holdout": "holdout8 (seed 1010, 29건, 개발·엔지니어·하드웨어·펌웨어)",
+      "result": {
+        "predictedDev": 10,
+        "tp": 10,
+        "fpNotDev": 0,
+        "fpMixed": 0,
+        "fn": 2,
+        "unsure": 1,
+        "precisionStrict": 1.0,
+        "precisionWilson95Lower": 0.72,
+        "recall": 0.833,
+        "unclassified": "4/29",
+        "unclassifiedRate": 0.138,
+        "roleCorrect": "10/10",
+        "hardwarePostingsNotIt": "7/7"
+      },
+      "verdict": "IT 정밀도 기준 충족. 표본이 작고(개발 예측 10건) 경계 검색어 위주라 일반 분포 대표성은 제한적"
     }
   ],
   "finalVersionOnAllSamples": {
-    "note": "최종 버전을 train·holdout1~3(개발용으로 쓴 자료)에 다시 적용한 값. holdout 수치가 아니다.",
-    "developmentSets": { "predictedDev": 50, "tp": 50, "fp": 0, "fn": 2, "labelledDev": 52 },
+    "note": "최종 버전을 train·holdout1~7(사전 수정에 쓴 자료)에 다시 적용한 값. holdout 수치가 아니다.",
+    "developmentSets": {
+      "predictedDev": 91,
+      "tp": 91,
+      "fp": 0,
+      "fn": 17,
+      "labelledDev": 108,
+      "nonHiringTp": 11,
+      "nonHiringFp": 0,
+      "nonHiringFn": 0
+    },
     "unclassifiedByPool": {
-      "generalList": { "jobs": 64, "unclassified": 4, "development": 1, "nonHiring": 1 },
-      "devSearch": { "jobs": 128, "unclassified": 23, "development": 57, "nonHiring": 8 },
-      "all": { "jobs": 192, "unclassified": 27, "rate": 0.141 }
+      "generalList": {
+        "jobs": 100,
+        "unclassified": 9,
+        "it": 1,
+        "nonHiring": 3
+      },
+      "devSearch": {
+        "jobs": 239,
+        "unclassified": 47,
+        "it": 103,
+        "nonHiring": 8
+      },
+      "all": {
+        "jobs": 339,
+        "unclassified": 56,
+        "rate": 0.165
+      }
     }
   },
-  "generalizableAccuracy": false
+  "generalizableAccuracy": false,
+  "families": "IT·개발이면 families ['it']. 비IT 직무군 사전은 후속 단계라 비IT·채용 아님·애매한 공고는 빈 목록(화면 '분류 대기').",
+  "knownIssues": [
+    "공백 선택 패턴이라 '회로설계'와 '회로 설계'처럼 같은 키워드가 두 번 세어진다(holdout8 누락 2건의 원인). 고치면 다시 holdout 측정 필요."
+  ]
 }

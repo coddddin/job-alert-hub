@@ -28,13 +28,17 @@ export interface CollectedJob {
   readonly description: string;
   /** 지원 전에 확인할 조건. 수집처가 주지 않으면 `null`. */
   readonly details: JobDetails | null;
-  /** `kind`·`role`을 어떻게 정했는지. 없으면 예전 스냅샷이다. */
+  /** 직무군 ID(`classify/taxonomy.ts`). 여러 개일 수 있고, 미분류면 빈 목록. 없으면 예전 스냅샷이다. */
+  readonly families?: readonly string[];
+  /** `kind`·`role`·`families`를 어떻게 정했는지. 없으면 예전 스냅샷이다. */
   readonly classification?: JobClassification;
 }
 
-/** 직무 분류 방법과 근거. 출처 코드 > 출처 태그 > 규칙 > 미분류 순으로 믿는다. */
+/** 직무 분류 방법과 근거. 출처 코드 > 출처 태그 > 규칙 > 모델 추정 > 미분류 순으로 믿는다. */
 export interface JobClassification {
-  readonly method: 'source-code' | 'source-tag' | 'rule' | 'none';
+  readonly method: 'source-code' | 'source-tag' | 'rule' | 'model' | 'none';
+  /** 모델 추정의 확률(0~1). 다른 방법에는 없다. */
+  readonly confidence?: number;
   /** 매핑표·규칙 버전. 예: `ncs-map/1` */
   readonly version: string;
   /** 판단에 쓴 코드·태그·키워드. 예: `NCS:정보통신` */

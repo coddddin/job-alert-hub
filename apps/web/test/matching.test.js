@@ -71,3 +71,20 @@ test('저장 상태는 수집 공고 ID와 모든 시·도를 받아들이고 �
   assert.deepEqual(state.bookmarks, ['alio:306649', 'sample-1']);
   assert.deepEqual(state.applications, { 'alio:1': '지원 완료' });
 });
+test('첫 방문 답(직무군·경력)으로 맞춤을 고르고, 직무를 모르는 공고는 확인 필요로 둔다', () => {
+  const base = { ...defaults, family: 'mine', families: ['medical'], career: 'any', region: 'all' };
+  const nurse = normalizeJob({ ...jobs[0], id: 'alio:9', kind: 'other', role: '보건.의료', families: ['medical'], raw: { experience: '경력 3년 이상', location: '서울', deadline: '상시채용' } }, '2026-09-29');
+  const unknown = { ...nurse, id: 'jobkorea:1', families: [], classification: { method: 'none', version: 'none', evidence: [] } };
+  assert.equal(matchJob(nurse, base).status, 'match');
+  assert.equal(matchJob(jobs[0], base).status, 'exclude'); // IT 공고는 관심 직무 아님
+  assert.equal(matchJob(unknown, base).status, 'review');
+  assert.deepEqual(notificationCandidates([nurse, unknown], base).map(job => job.id), ['alio:9']);
+  const guessed = { ...nurse, id: 'jobkorea:2', classification: { method: 'model', version: 'family-model/1', evidence: ['간호'], confidence: 0.93 } };
+  assert.equal(matchJob(guessed, base).status, 'match');
+  assert.deepEqual(notificationCandidates([guessed], base), []); // 모델 추정은 알림 제외
+  assert.equal(matchJob(nurse, { ...base, career: 'new' }).reason, '경력 필수');
+  assert.equal(matchJob(jobs[0], { ...defaults, career: 'experienced' }).status, 'match'); // 경력자도 신입 공고를 본다
+  const saved = sanitizeState({ version: 1, profile: { families: ['medical', 'bad', 'medical'], career: 'any', region: 'all' } });
+  assert.deepEqual(saved.profile, { families: ['medical'], career: 'any', region: 'all' });
+  assert.equal(sanitizeState({ version: 1, profile: { families: [] } }).profile, null);
+});
