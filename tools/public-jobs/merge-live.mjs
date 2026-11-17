@@ -16,6 +16,8 @@ import { collect } from '../../apps/collector/dist/collect.js';
 import { publicJobs } from '../../apps/collector/dist/providers/public-jobs.js';
 import { saramin } from '../../apps/collector/dist/providers/saramin.js';
 import { mergePreviewSnapshots } from '../../apps/web/lib/preview.js';
+import { normalizeJob } from '../../apps/web/lib/normalize-job.js';
+import { readPlan } from './collection-plan.mjs';
 
 /** Private sources by the batch's `source`. Each validates its own JSON contract. */
 const PROVIDERS = { jobkorea: publicJobs, saramin };
@@ -36,6 +38,9 @@ export async function mergeLive(base, input) {
   if (base.sources?.some(source => source.name === provider.name)) return { reason: `base already has ${provider.name}` };
   let merged;
   try { merged = mergePreviewSnapshots(base, incoming); } catch (error) { return { reason: error.message }; }
+  // 공고마다 마지막으로 본 시각을 남긴다. 다음 회차에서 이월·재요청 판단에 쓴다.
+  const seen = new Map(input.jobs.map(job => [`${provider.name}:${job?.externalId}`, job?.observedAt]));
+  merged = { ...merged, jobs: merged.jobs.map(job => (seen.has(job.id) ? { ...job, seenAt: new Date(seen.get(job.id)).toISOString() } : job)) };
   const stamp = (sources, collectedAt) => sources.map(source => ({ ...source, collectedAt: source.collectedAt ?? collectedAt }));
   return {
     snapshot: {
@@ -45,6 +50,37 @@ export async function mergeLive(base, input) {
       sources: [...stamp(base.sources ?? [], base.collectedAt), ...stamp(incoming.sources, incoming.collectedAt)],
     },
   };
+}
+
+/**
+ * 이전 배포 스냅샷의 민간 공고를 이어 붙인다(누적). 이번 회차에 다시 본 공고는 새 관측이 이긴다.
+ * 이월 조건: carryHours 안에 본 공고이고, 오늘 기준으로 마감되지 않았다. ALIO는 매 회차 전체를 받으므로 이월하지 않는다.
+ */
+export function carryOver(snapshot, previous, { carryHours = 72, now = new Date() } = {}) {
+  if (previous?.version !== 1 || !Array.isArray(previous.jobs)) return { snapshot, carried: {} };
+  const have = new Set(snapshot.jobs.map(job => job.id));
+  const limit = now.getTime() - carryHours * 3_600_000;
+  const carried = {};
+  const jobs = [];
+  for (const job of previous.jobs) {
+    const source = typeof job?.id === 'string' ? job.id.split(':')[0] : '';
+    if (!source || source === 'alio' || have.has(job.id)) continue;
+    const seenAt = Date.parse(job.seenAt ?? '');
+    if (!Number.isFinite(seenAt) || seenAt < limit) continue;
+    try { if (normalizeJob(job, snapshot.today).closed) continue; } catch { continue; }
+    jobs.push(job);
+    have.add(job.id);
+    carried[source] = (carried[source] ?? 0) + 1;
+  }
+  if (!jobs.length) return { snapshot, carried };
+  const sources = snapshot.sources.map(entry => (carried[entry.name] ? { ...entry, carried: carried[entry.name] } : entry));
+  for (const name of Object.keys(carried)) {
+    if (sources.some(entry => entry.name === name)) continue;
+    // 이번 회차에 실패한 출처: 이전 수집 시각을 그대로 두어 화면이 오래된 데이터로 표시하게 한다.
+    const old = previous.sources?.find(entry => entry.name === name);
+    if (old) sources.push({ ...old, total: 0, skipped: 0, carried: carried[name] });
+  }
+  return { snapshot: { ...snapshot, sources, jobs: [...snapshot.jobs, ...jobs] }, carried };
 }
 
 /** Merge every batch file in order onto the base. Returns the final snapshot (or null) and one line per batch. */
@@ -71,10 +107,19 @@ export async function mergeFiles(base, files) {
 }
 
 async function main() {
-  const { values } = parseArgs({ options: { base: { type: 'string' }, batch: { type: 'string', multiple: true } } });
-  if (!values.base || !values.batch?.length) throw new Error('Usage: merge-live.mjs --base snapshot.json --batch batch.json [--batch more.json]');
+  const { values } = parseArgs({ options: { base: { type: 'string' }, batch: { type: 'string', multiple: true }, previous: { type: 'string' }, plan: { type: 'string' } } });
+  if (!values.base || !values.batch?.length) throw new Error('Usage: merge-live.mjs --base snapshot.json --batch batch.json [--batch more.json] [--previous deployed.json --plan plan.json]');
   const base = JSON.parse(await readFile(values.base, 'utf8'));
-  const { snapshot, lines } = await mergeFiles(base, values.batch);
+  let { snapshot, lines } = await mergeFiles(base, values.batch);
+  if (values.previous) {
+    let previous = null;
+    let plan = readPlan({});
+    try { previous = JSON.parse(await readFile(values.previous, 'utf8')); } catch (error) { lines.push(`previous snapshot unreadable (${error.code ?? error.message})`); }
+    try { if (values.plan) plan = readPlan(JSON.parse(await readFile(values.plan, 'utf8'))); } catch { /* 기본값 */ }
+    const result = carryOver(snapshot ?? base, previous, { carryHours: plan.carryHours });
+    const total = Object.values(result.carried).reduce((a, b) => a + b, 0);
+    if (total) { snapshot = result.snapshot; lines.push(`carried from previous: ${Object.entries(result.carried).map(([k, v]) => `${k} ${v}`).join(', ')}`); }
+  }
   if (snapshot) {
     // Write next to the target then rename, so a crash never leaves a half-written snapshot.
     await writeFile(`${values.base}.tmp`, `${JSON.stringify(snapshot)}\n`);

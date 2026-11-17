@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "note": "수집 우선순위(설계 10절). focus는 관심 직무군 ID(apps/web/lib/taxonomy.js). 사이트 주인의 관심 설정과 맞춰 고친다.",
+  "focus": ["it"],
+  "focusShare": 0.7,
+  "carryHours": 72,
+  "skipSeenHours": 24,
+  "jobkorea": { "detailsPerRun": 40, "searchPagesPerQuery": 1 },
+  "saramin": { "pagesPerRun": 10 },
+  "queries": {
+    "it": ["백엔드", "프론트엔드", "웹 개발자", "앱 개발자", "신입 개발자", "데이터 엔지니어", "AI 엔지니어", "DevOps", "정보보안", "SW 엔지니어", "게임 개발", "임베디드"]
+  }
+}
