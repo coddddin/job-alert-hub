@@ -1,5 +1,6 @@
 import { isStale, loadJobs } from './lib/load-jobs.js';
-import { defaults, matchJob, matchesCatalogFilters, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
+import { CAREERS, defaults, familiesOf, matchJob, matchesCatalogFilters, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
+import { FAMILIES, familyLabel } from './lib/taxonomy.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
 import { siteLinks } from './lib/site-links.js';
@@ -29,8 +30,9 @@ try {
   state = sanitizeState(saved);
   if (catalog && !saved?.filters) state.filters.region = 'all';
 } catch { storageAvailable = false; }
+const hasProfile = () => Boolean(state.profile && !state.profile.skipped);
 let view = 'feed';
-let tab = catalog ? 'all' : 'match';
+let tab = hasProfile() || !catalog ? 'match' : 'all';
 let toastTimer;
 
 if (catalog) {
@@ -49,8 +51,19 @@ if (catalog) {
 }
 
 for (const select of [$('#filter-role'), $('#alert-role')]) {
-  select.innerHTML = ROLES.map(role => `<option value="${role}">${role === 'all' ? '분야 전체' : role}</option>`).join('');
+  select.innerHTML = ROLES.map(role => `<option value="${role}">${role === 'all' ? 'IT 세부 전체' : role}</option>`).join('');
 }
+const CAREER_LABELS = { new: '신입', experienced: '경력', any: '경력 상관없음' };
+for (const select of [$('#filter-career'), $('#alert-career')]) {
+  select.innerHTML = CAREERS.map(career => `<option value="${career}">${CAREER_LABELS[career]}</option>`).join('');
+}
+function fillFamilySelects() {
+  const mine = hasProfile() ? `<option value="mine">내 관심 직무 (${state.profile.families.map(familyLabel).join('·')})</option>` : '';
+  for (const select of [$('#filter-family'), $('#alert-family')]) {
+    select.innerHTML = `${mine}<option value="all">직무 전체</option>${FAMILIES.map(family => `<option value="${family.id}">${family.label}</option>`).join('')}`;
+  }
+}
+fillFamilySelects();
 for (const select of document.querySelectorAll('select[name="region"]')) {
   select.innerHTML = REGIONS.map(region => `<option value="${region}">${region === 'all' ? '지역 전체' : region}</option>`).join('');
 }
@@ -113,6 +126,12 @@ function row(job, result) {
   </tr>`;
 }
 
+function focusLabel() {
+  const families = state.filters.family === 'mine' ? state.filters.families : state.filters.family === 'all' ? [] : [state.filters.family];
+  const who = { new: '신입이', experienced: '경력자가', any: '' }[state.filters.career] ?? '';
+  return [families.length ? `${families.map(familyLabel).join('·')} 직무에` : '', who].filter(Boolean).join(' ') || '지금';
+}
+
 function render() {
   const results = jobs.map(job => ({ job, result: matchJob(job, state.filters) }));
   const source = $('#filter-source').value;
@@ -132,7 +151,7 @@ function render() {
   $('#feed-subtitle').textContent = view === 'saved'
     ? '스크랩한 공고에 현재 목록 필터를 적용했어요. 공고를 눌러 지원 상태를 기록해 보세요.'
     : tab === 'all' ? '출처별 공고를 검색하고, 상세에서 지원 조건과 원문을 확인하세요.'
-    : `경력·근무지·마감 표기를 해석해 ${state.filters.region === 'all' ? '' : state.filters.region + '에서 '}신입이 지원할 수 있는 공고를 찾아요`;
+    : `경력·근무지·마감 표기를 해석해 ${state.filters.region === 'all' ? '' : state.filters.region + '에서 '}${focusLabel()} 지원할 수 있는 공고를 찾아요`;
   $('#match-count').textContent = match;
   $('#review-count').textContent = count('review');
   $('#parse-rate').textContent = `${rate.percent}%`;
@@ -199,7 +218,7 @@ function fillForm(form, values) {
 }
 function readForm(form) {
   const data = new FormData(form);
-  return { role: data.get('role'), region: data.get('region'), keyword: data.get('keyword').trim(), includeUnspecified: data.has('includeUnspecified') };
+  return { family: data.get('family'), families: hasProfile() ? state.profile.families : [], career: data.get('career'), role: data.get('role'), region: data.get('region'), keyword: data.get('keyword').trim(), includeUnspecified: data.has('includeUnspecified') };
 }
 function switchView(next) {
   view = next;
@@ -274,6 +293,7 @@ function factRow(label, value, { raw = null, note = '' } = {}) {
 function facts(job) {
   const d = job.details;
   const rows = [
+    factRow('직무', jobFamilies(job), { note: classificationNote(job) }),
     factRow('경력', describeExperience(job.parsed.experience), { raw: job.raw.experience }),
     d ? factRow('학력', d.minimumEducation ?? d.education.join(' · '), { note: d.education.length > 1 ? `분야별: ${d.education.join(' · ')}` : '' }) : '',
     factRow('근무지', describeLocation(job.parsed.location), { raw: job.raw.location }),
@@ -283,6 +303,17 @@ function facts(job) {
     d ? factRow('우대', d.preferences) : factRow('모집', job.description),
   ];
   return `<dl class="facts">${rows.join('')}</dl>${requirements(d)}`;
+}
+function jobFamilies(job) {
+  const families = familiesOf(job);
+  return families.length ? families.map(familyLabel).join(' · ') + (job.role && families.includes('it') ? ` (${job.role})` : '') : '분류 대기';
+}
+/** 직무를 어떻게 정했는지 보여 준다. 자동 분류는 근거를 함께 적어 사용자가 판단할 수 있게 한다. */
+function classificationNote(job) {
+  const c = job.classification;
+  if (!c) return '';
+  const evidence = c.evidence.slice(0, 4).join(', ');
+  return ({ 'source-code': `출처 분류 ${evidence}`, 'source-tag': `출처 태그 ${evidence}`, rule: `자동 분류 · 근거: ${evidence}`, model: `자동 추정 · 근거: ${evidence}${typeof c.confidence === 'number' ? ` · 신뢰도 ${Math.round(c.confidence * 100)}%` : ''}`, none: '출처에 직무 정보가 없어 원문에서 확인해 주세요' })[c.method] ?? '';
 }
 const PREVIEW_LINES = 6;
 /** "일반요건", "필수요건", "채용분야 응시자격"처럼 짧고 요건·자격으로 끝나는 줄은 소제목으로 본다. */
@@ -299,8 +330,14 @@ fillForm($('#filter-form'), state.filters);
 fillForm($('#alert-form'), state.notifications);
 $('#filter-form').addEventListener('input', () => { state.filters = readForm($('#filter-form')); persist(); render(); });
 $('#filter-form').addEventListener('submit', event => event.preventDefault());
+/** 초기화하면 첫 방문 답(있으면)으로, 없으면 기본값으로 돌아간다. */
+function baseFilters() {
+  const p = state.profile;
+  if (p && !p.skipped) return { ...defaults, family: 'mine', families: p.families, career: p.career, region: p.region };
+  return { ...defaults, ...(catalog || p?.skipped ? { region: 'all', family: 'all' } : {}) };
+}
 $('#reset-filters').addEventListener('click', () => {
-  state.filters = { ...defaults, ...(catalog ? { region: 'all' } : {}) };
+  state.filters = baseFilters();
   $('#filter-source').value = 'all';
   fillForm($('#filter-form'), state.filters); persist(); render();
 });
@@ -335,5 +372,41 @@ $('#job-list').addEventListener('click', event => {
   $('#job-dialog').showModal();
 });
 $('#close-dialog').addEventListener('click', () => $('#job-dialog').close());
+
+// ---------- 첫 방문 질문 ----------
+// 음악 앱의 취향 선택처럼, 처음 왔을 때 관심 직무·경력·지역을 묻고 맞춤 탭과 알림의 기준으로 쓴다.
+const onboarding = $('#onboarding');
+function openOnboarding() {
+  const p = hasProfile() ? state.profile : { families: [], career: 'new', region: '서울' };
+  $('#onboarding-families').innerHTML = FAMILIES.map(family => `<label><input type="checkbox" name="families" value="${family.id}"${p.families.includes(family.id) ? ' checked' : ''}> ${family.label}</label>`).join('');
+  $('#onboarding-careers').innerHTML = CAREERS.map(career => `<label><input type="radio" name="career" value="${career}"${p.career === career ? ' checked' : ''}> ${CAREER_LABELS[career]}</label>`).join('');
+  $('#onboarding-region').innerHTML = REGIONS.map(region => `<option value="${region}"${p.region === region ? ' selected' : ''}>${region === 'all' ? '지역 상관없음' : region}</option>`).join('');
+  $('#onboarding-error').textContent = '';
+  onboarding.showModal();
+}
+function applyProfile(profile) {
+  state.profile = profile;
+  state.filters = baseFilters();
+  if (!profile.skipped) state.notifications = { ...state.notifications, family: 'mine', families: profile.families, career: profile.career, region: profile.region, role: 'all' };
+  fillFamilySelects();
+  fillForm($('#filter-form'), state.filters);
+  fillForm($('#alert-form'), state.notifications);
+  tab = profile.skipped && catalog ? 'all' : 'match';
+  persist(); render();
+}
+$('#onboarding-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const families = form.getAll('families');
+  if (!families.length) { $('#onboarding-error').textContent = '관심 직무를 하나 이상 골라 주세요.'; return; }
+  onboarding.close();
+  applyProfile({ families, career: form.get('career'), region: form.get('region') });
+  toast('관심 설정을 저장했어요. 맞춤 탭과 알림에 적용돼요.');
+});
+$('#onboarding-skip').addEventListener('click', () => onboarding.close());
+// Esc나 건너뛰기로 닫으면, 아직 답이 없을 때만 '건너뜀'으로 기록해 다시 묻지 않는다.
+onboarding.addEventListener('close', () => { if (!state.profile) applyProfile({ skipped: true }); });
+$('#open-onboarding').addEventListener('click', openOnboarding);
 render();
+if (storageAvailable && !state.profile) openOnboarding();
 if (!storageAvailable) toast('저장된 설정을 읽을 수 없어 기본값으로 시작합니다.');
