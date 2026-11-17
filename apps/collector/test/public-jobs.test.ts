@@ -37,6 +37,20 @@ describe('public job boundary', () => {
     expect(result).toMatchObject({ total: 2, skipped: 1 });
     expect(result.jobs).toHaveLength(1);
   });
+  it.each([
+    { ...item, signals: { skills: [], duties: null, jobNames: [] } },
+    { ...item, extractorVersion: 'jobkorea-detail/2', signals: { skills: ['Spring'], duties: null, jobNames: [1] } },
+    { ...item, extractorVersion: 'jobkorea-detail/2', signals: { skills: 'Spring', duties: null, jobNames: [] } },
+    { ...item, extractorVersion: 'jobkorea-detail/2', signals: { skills: [], duties: '', jobNames: [] } },
+  ])('rejects signals on /1 or malformed signals: %j', async value => {
+    expect(await publicJobs(batch([value])).collect(noFetch)).toMatchObject({ jobs: [], skipped: 1 });
+  });
+  it('classifies /2 rows by rule from signals; /2 without signals stays unclassified', async () => {
+    const v2 = { ...item, extractorVersion: 'jobkorea-detail/2', signals: { skills: ['Spring'], duties: null, jobNames: ['서버 개발'] } };
+    const result = await publicJobs(batch([v2, { ...item, externalId: '10000002', url: `${item.url.slice(0, -1)}2`, extractorVersion: 'jobkorea-detail/2' }])).collect(noFetch);
+    expect(result.jobs[0]).toMatchObject({ kind: 'development', role: '백엔드', classification: { method: 'rule', version: 'keyword-rules/1' } });
+    expect(result.jobs[1]).toMatchObject({ kind: 'other', role: '', classification: { method: 'none' } });
+  });
   it('preserves raw fields and stable identity without fetching', async () => {
     const result = await publicJobs(batch([item])).collect(noFetch);
     expect(result.jobs[0]).toMatchObject({ id: 'jobkorea:10000001', company: '예시랩', title: '백엔드 개발자',

@@ -35,3 +35,5 @@ export function classifyNcs(fields: readonly string[]): Classified {
     },
   };
 }
+
+export { classifyKeywords, KEYWORD_RULES_VERSION, type JobSignals } from './keywords.js';

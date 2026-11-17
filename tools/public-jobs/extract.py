@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 from scrapling import Selector
 
 FIELDS = ("company", "title", "location", "experience", "deadline")
-VERSION = "jobkorea-detail/1"
+VERSION = "jobkorea-detail/2"
 
 
 def clean(value):
@@ -122,12 +122,77 @@ def extract(page, url, observed_at):
     dom_deadlines = [(text(node, True), "dom:마감일") for node in deadline_nodes if re.search(r"\d{4}[.-]\d{2}[.-]\d{2}|상시|채용\s*시", text(node, True))]
     if dom_deadlines:
         candidates["deadline"] = dom_deadlines
+    job_signals = signals(page, external_id, warnings) if selected else None
     return {
         "externalId": external_id, "url": url, "observedAt": observed_at,
         "extractorVersion": VERSION,
         "fields": {name: resolve(candidates[name]) for name in FIELDS},
+        **({"signals": job_signals} if job_signals else {}),
         "warnings": sorted(set(warnings)),
     }
+
+
+NEXT_PUSH = re.compile(r"^\s*self\.__next_f\.push\((\[.*\])\)\s*;?\s*$", re.S)
+
+
+def own_job_data(page, external_id):
+    """The posting's own query in the page's embedded app state, never a recommendation."""
+    chunks = []
+    for script in page.xpath('//script[not(@src)]/text()').getall():
+        match = NEXT_PUSH.match(script)
+        if not match:
+            continue
+        try:
+            item = json.loads(match[1])
+        except ValueError:
+            continue
+        if len(item) > 1 and isinstance(item[1], str):
+            chunks.append(item[1])
+    state = "".join(chunks)
+    key = state.find(f'"queryKey":["JOBS","{external_id}"]')
+    start = state.rfind('{"dehydratedAt"', 0, key) if key >= 0 else -1
+    if start < 0:
+        return None
+    try:
+        query = json.JSONDecoder().raw_decode(state, start)[0]
+    except ValueError:
+        return None
+    data = dig(query, "state", "data")
+    return data if str(dig(data, "extension", "common", "jobId")) == external_id else None
+
+
+def unique(values):
+    seen = []
+    for value in map(clean, values):
+        if value and value not in seen:
+            seen.append(value)
+    return seen
+
+
+def names(items):
+    return [item.get("name") for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+
+
+def dig(value, *keys):
+    for key in keys:
+        value = value.get(key) if isinstance(value, dict) else None
+    return value
+
+
+def signals(page, external_id, warnings):
+    """Raw job signals for the TypeScript classifier. Classification never happens here."""
+    data = own_job_data(page, external_id)
+    if data is None:
+        warnings.append("signals:app_state_missing")
+    listed = lambda value: value if isinstance(value, list) else []
+    dom_skills = page.xpath('//*[@data-sentry-component="QualificationItem"]/*[1][normalize-space(.)="스킬"]/following-sibling::*')
+    dom_fields = page.xpath('//*[@data-sentry-component="RecruitmentField"]/*[1][normalize-space(.)="모집분야"]/following-sibling::*')
+    skills = unique(names(dig(data, "extension", "common", "skills")) + [s for node in dom_skills for s in text(node).split(",")])
+    job_names = unique([s for node in dom_fields for s in text(node).split(",")]
+                       + [v for v in listed(dig(data, "base", "overview", "recruitment", "workFields")) if isinstance(v, str)]
+                       + names(dig(data, "extension", "common", "keywords")))
+    notes = [v for v in listed(dig(data, "extension", "common", "adminInputEtc", "adminInputJobTypeEtc")) if isinstance(v, str)]
+    return {"skills": skills, "duties": " / ".join(unique(notes)) or None, "jobNames": job_names}
 
 
 class HttpStatusError(ValueError):
