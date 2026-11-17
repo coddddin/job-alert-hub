@@ -313,7 +313,7 @@ function classificationNote(job) {
   const c = job.classification;
   if (!c) return '';
   const evidence = c.evidence.slice(0, 4).join(', ');
-  return ({ 'source-code': `출처 분류 ${evidence}`, 'source-tag': `출처 태그 ${evidence}`, rule: `자동 분류 · 근거: ${evidence}`, none: '출처에 직무 정보가 없어 원문에서 확인해 주세요' })[c.method] ?? '';
+  return ({ 'source-code': `출처 분류 ${evidence}`, 'source-tag': `출처 태그 ${evidence}`, rule: `자동 분류 · 근거: ${evidence}`, model: `자동 추정 · 근거: ${evidence}${typeof c.confidence === 'number' ? ` · 신뢰도 ${Math.round(c.confidence * 100)}%` : ''}`, none: '출처에 직무 정보가 없어 원문에서 확인해 주세요' })[c.method] ?? '';
 }
 const PREVIEW_LINES = 6;
 /** "일반요건", "필수요건", "채용분야 응시자격"처럼 짧고 요건·자격으로 끝나는 줄은 소제목으로 본다. */

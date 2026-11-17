@@ -79,6 +79,9 @@ test('첫 방문 답(직무군·경력)으로 맞춤을 고르고, 직무를 모
   assert.equal(matchJob(jobs[0], base).status, 'exclude'); // IT 공고는 관심 직무 아님
   assert.equal(matchJob(unknown, base).status, 'review');
   assert.deepEqual(notificationCandidates([nurse, unknown], base).map(job => job.id), ['alio:9']);
+  const guessed = { ...nurse, id: 'jobkorea:2', classification: { method: 'model', version: 'family-model/1', evidence: ['간호'], confidence: 0.93 } };
+  assert.equal(matchJob(guessed, base).status, 'match');
+  assert.deepEqual(notificationCandidates([guessed], base), []); // 모델 추정은 알림 제외
   assert.equal(matchJob(nurse, { ...base, career: 'new' }).reason, '경력 필수');
   assert.equal(matchJob(jobs[0], { ...defaults, career: 'experienced' }).status, 'match'); // 경력자도 신입 공고를 본다
   const saved = sanitizeState({ version: 1, profile: { families: ['medical', 'bad', 'medical'], career: 'any', region: 'all' } });

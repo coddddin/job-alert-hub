@@ -67,6 +67,7 @@ export function matchJob(job, filters = defaults) {
   return { status: 'match', reason: `${families} · ${filters.region === 'all' ? '지역 제한 없음' : filters.region + ' 근무'} · ${job.experience === 'unspecified' ? '경력무관' : careerLabel[career]}` };
 }
 
+/** 알림은 출처·규칙으로 직무를 정한 공고만. 모델 추정은 맞춤 탭에만 보인다(설계 8.6). */
 export function notificationCandidates(jobs, filters, bookmarksOnly = null) {
-  return jobs.filter(job => matchJob(job, filters).status === 'match' && (!bookmarksOnly || bookmarksOnly.includes(job.id)));
+  return jobs.filter(job => job.classification?.method !== 'model' && matchJob(job, filters).status === 'match' && (!bookmarksOnly || bookmarksOnly.includes(job.id)));
 }
