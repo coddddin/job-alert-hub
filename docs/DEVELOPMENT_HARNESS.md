@@ -59,3 +59,14 @@ README 수정, 파일 삭제, 유료 서비스 활성화 금지.
   결합하고 이전 결과를 이월하지 않는다. 화면은 36시간이 지난 출처에 `(오래된 데이터)`를 붙인다.
 - 검증: `tools/public-jobs/verify-front.mjs` 한 번의 브라우저 흐름(로드 → 두 출처 → 출처·검색 필터 →
   상세·원문 → 스크랩·새로고침 → 맞춤/알림 ALIO 전용 대비 회귀). 결합 단위 테스트는 실패 시 ALIO 보존만 확인.
+
+## 2026-11-17 잡코리아 규칙 분류 결정
+
+- 판단은 TS 한 곳(`apps/collector/src/classify/keywords.ts`)에서 한다. 추출기는 `jobkorea-detail/2`에서 `signals`만 넘긴다.
+  사람인 세션과의 충돌을 줄이려고 `classify/index.ts`는 export 한 줄만 더했다.
+- 사전(`keyword-rules.v1.json`)을 바꾸면: sha256 기록 → 새 회차·새 시드 holdout을 blind 라벨 → 엄격 정밀도(여러 부문 공고를
+  오답으로 셈) 95% 이상일 때만 채택. 고친 뒤 이전 holdout은 개발용으로 돌린다. 실제 표본·라벨은 `.scrapling-local/classify/`,
+  집계만 `tools/public-jobs/classification-holdout-2026-11-17.json`에 커밋한다.
+- 애매하면 미분류(전체 탭만). 제목만으로는 확정하지 않고, 두 필드(제목·모집분야/키워드·스킬·비고) 이상이 같은 방향이어야 한다.
+- 브라우저 확인은 `verify-front.mjs` 한 번: ALIO 맞춤·알림은 ALIO 전용과 같고, 맞춤에 들어온 잡코리아 행은 규칙 분류 개발 공고뿐이며,
+  지역 전체에서 신입·경력무관 잡코리아 개발 공고가 맞춤 탭에 나온다. 단위 테스트는 규칙 경계 사례와 계약만 둔다.

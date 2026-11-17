@@ -62,6 +62,32 @@ class ExtractionTests(unittest.TestCase):
     def test_recommendation_is_not_this_job(self):
         self.assertIsNone(run(HTML.replace('GI_Read/10000001', 'GI_Read/999'))["fields"]["company"]["value"])
 
+    def test_signals_come_from_this_jobs_app_state_only(self):
+        def push(text):
+            return '<script>self.__next_f.push(' + json.dumps([1, text], ensure_ascii=False) + ')</script>'
+        def query(job_id, skills, keywords, note):
+            return json.dumps({"dehydratedAt": 1, "state": {"data": {"base": {"overview": {"recruitment": {"workFields": ["서버"]}}},
+                "extension": {"common": {"jobId": int(job_id), "skills": [{"name": s} for s in skills],
+                "keywords": [{"name": k} for k in keywords], "adminInputEtc": {"adminInputJobTypeEtc": [note]}}}}},
+                "queryKey": ["JOBS", job_id]}, ensure_ascii=False, separators=(",", ":"))
+        other = query("999", ["간호"], ["조리"], "다른 공고")
+        own = query("10000001", ["Spring", "Kotlin"], ["백엔드개발자"], "")
+        state = '[' + other + ',' + own + ']'
+        field = '<div data-sentry-component="RecruitmentField"><span>모집분야</span><span>백엔드, 서버</span></div>'
+        # The app state arrives split across several push chunks.
+        html = HTML.replace('</body>', field + push(state[:50]) + push(state[50:]) + '</body>')
+        job = run(html)
+        self.assertEqual(job["extractorVersion"], "jobkorea-detail/2")
+        self.assertEqual(job["signals"], {"skills": ["Spring", "Kotlin"], "duties": None, "jobNames": ["백엔드", "서버", "백엔드개발자"]})
+        self.assertNotIn("signals:app_state_missing", job["warnings"])
+
+    def test_signals_without_app_state_keep_visible_fields_and_warn(self):
+        field = '<div data-sentry-component="RecruitmentField"><span>모집분야</span><span>프론트엔드</span></div>'
+        job = run(HTML.replace('</body>', field + '</body>'))
+        self.assertEqual(job["signals"], {"skills": [], "duties": None, "jobNames": ["프론트엔드"]})
+        self.assertIn("signals:app_state_missing", job["warnings"])
+        self.assertNotIn("signals", run('<h1>로그인</h1>'))
+
     def test_multilocation_and_object_experience(self):
         record = {"@type": ["JobPosting"], "url": URL, "title": "개발자", "hiringOrganization": {"name": "예시"},
                   "experienceRequirements": {"monthsOfExperience": 36},

@@ -103,18 +103,49 @@ try {
   assert.ok(await page.locator(`[data-detail="${target.id}"]`).isVisible());
   log.scrap = { savedCount: 1, persistedAfterReload: true };
 
-  // 6. Personal tab and alerts: same filters as ALIO-only give the same results.
+  // 6. Personal tab and alerts: ALIO results are unchanged, and only rule-classified JobKorea
+  //    development jobs join them (unclassified or non-development JobKorea rows never do).
   await page.click('[data-view="feed"]');
   await page.click('#reset-filters');
   await page.selectOption('#filter-region', '서울');
   await page.click('[data-tab="match"]');
   const match = Number(await page.textContent('#tab-match'));
-  assert.equal(match, refMatch);
-  assert.equal(await page.locator('#job-list [data-detail^="jobkorea:"]').count(), 0);
+  const alioInMatch = await page.locator('#job-list [data-detail^="alio:"]').count();
+  const matched = await page.locator('#job-list [data-detail^="jobkorea:"]').evaluateAll(rows => rows.map(row => row.dataset.detail));
+  assert.equal(alioInMatch, refMatch);
+  assert.equal(match, refMatch + matched.length);
+  const byId = new Map(snapshot.jobs.map(job => [job.id, job]));
+  for (const id of matched) {
+    const job = byId.get(id);
+    assert.equal(job.kind, 'development', id);
+    assert.equal(job.classification?.method, 'rule', id);
+    assert.ok(!job.classification.nonHiring, id);
+  }
   await page.click('[data-view="alerts"]');
   const alerts = await page.locator('#alert-preview li:not(.muted)').count();
-  assert.equal(alerts, refAlerts);
-  log.regression = { match, alerts, jobkoreaInMatch: 0 };
+  assert.ok(alerts >= refAlerts, `${alerts} < ${refAlerts}`);
+  log.regression = { match, alioInMatch, refMatch, alerts, refAlerts, jobkoreaInMatch: matched.length,
+    jobkoreaMatched: matched.map(id => ({ id, role: byId.get(id).role, evidence: byId.get(id).classification.evidence.slice(0, 3) })) };
+
+  // 7. Any region: a JobKorea development job that new graduates may apply to reaches the personal tab,
+  //    and its detail shows the source. (Seoul alone may have none: many are experienced-only.)
+  await page.click('[data-view="feed"]');
+  await page.selectOption('#filter-region', 'all');
+  await page.click('[data-tab="match"]');
+  const anyRegion = await page.locator('#job-list [data-detail^="jobkorea:"]').evaluateAll(rows => rows.map(row => row.dataset.detail));
+  const open = snapshot.jobs.filter(job => job.id.startsWith('jobkorea:') && job.kind === 'development' &&
+    /경력무관|신입/u.test(job.raw?.experience ?? ''));
+  for (const id of anyRegion) assert.equal(byId.get(id).kind, 'development', id);
+  if (open.length) {
+    assert.ok(anyRegion.length >= 1, 'JobKorea development jobs missing from the personal tab');
+    await page.click(`[data-detail="${anyRegion[0]}"]`);
+    await page.waitForSelector('#job-dialog[open]');
+    assert.ok((await page.textContent('#dialog-content')).includes('잡코리아'));
+    await page.click('#close-dialog');
+  } else assert.equal(anyRegion.length, 0);
+  log.jobkoreaMatch = { region: 'all', jobkoreaInMatch: anyRegion.length, openDevelopmentJobs: open.length,
+    roles: anyRegion.map(id => byId.get(id).role) };
+  await shot(page, '7-match-jobkorea');
 
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ ok: true, ...log }, null, 2));

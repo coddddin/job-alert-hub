@@ -1,0 +1,57 @@
+{
+  "scope": "잡코리아 규칙 직무 분류(keyword-rules/1) 검증 집계. 2026-11-17 KST, 실제 공개 상세 5회차(회당 40건 이하, 2.5초 간격, UA JobAlertHubValidation/0.2). 개별 원문·라벨·ID는 .scrapling-local/classify 에만 둔다.",
+  "reviewMethod": "코드 작성 에이전트가 제목·모집분야·직무 키워드·스킬 원문을 보고 라벨링. holdout은 고정된 사전으로 예측을 보기 전에 라벨을 먼저 적었다(blind). 독립된 사람의 검수가 아니다.",
+  "labelScheme": {
+    "dev": "단일 개발·IT 직무 공고(웹·앱·서버·AI·DBA·인프라 포함)",
+    "notDev": "개발 직무가 아님",
+    "mixed": "여러 부문을 한 공고에 묶었고 그중 일부가 개발",
+    "unsure": "라벨러가 판단 보류. 지표에서 제외",
+    "precisionStrict": "개발 예측 중 dev 라벨 비율(mixed를 오답으로 셈). 합격 기준 적용 지표",
+    "precisionLenient": "mixed를 정답으로 셈"
+  },
+  "sampling": {
+    "general": "잡코리아 기본 목록 joblist?menucode=search(123건)에서 시드별 무작위",
+    "dev": "검색 목록(개발자·백엔드·프론트엔드·소프트웨어, holdout4는 엔지니어·IT·서버·앱개발·데이터)에서 무작위. 이전 회차 ID는 제외",
+    "requests": { "detailAttempted": 198, "detailHttp200": 192, "redirectsExcluded": 6, "blockedOrStopped": 0, "listingPages": 34,
+      "structureProbes": "상세 3건·목록 2건(신호 위치 확인용, 평가 미사용)" }
+  },
+  "protocol": "사전을 고칠 때마다 sha256을 기록하고 그 버전으로는 새 회차·새 시드 holdout에서만 잰다. 고친 뒤 이전 holdout은 개발용 자료로 돌린다.",
+  "history": [
+    {
+      "dictionarySha256": "4a9ff304a8a29a221edfa413ee68c2a1a747b2201504c3bde2c924a9b41a6e50",
+      "developedOn": ["train1 (seed 101, 37건)"],
+      "holdout": "holdout1 (seed 202, 39건)",
+      "result": { "predictedDev": 8, "tp": 7, "fpNotDev": 0, "fpMixed": 1, "fn": 0, "precisionStrict": 0.875, "precisionLenient": 1.0, "recall": 1.0, "unclassified": "2/39" },
+      "verdict": "불합격(엄격 87.5%). 여러 부문 공채 공고를 개발로 분류 → 부문별·공채 제목을 미분류로"
+    },
+    {
+      "dictionarySha256": "fdff6142250162b12e7afe74e93b2a945e05e7f3a5fea1f0ea0b05b4828f539d",
+      "holdout": "holdout2 (seed 404, 새 목록, 40건)",
+      "result": { "predictedDev": 12, "tp": 12, "fpNotDev": 0, "fpMixed": 0, "fn": 5, "precisionStrict": 1.0, "recall": 0.706, "unclassified": "12/40", "roleCorrect": "10/10", "nonHiring": "2/2" },
+      "verdict": "정밀도 합격. 재현율 보완(프론트앤드 등 표기 변형, Software Engineer, 클라우드 인프라 용어)"
+    },
+    {
+      "dictionarySha256": "00b1c3535e3fce06e0c4351051a5233afd82a36d1a2cee928e6eb29678d6ac15",
+      "holdout": "holdout3 (seed 505, 새 목록, 38건)",
+      "result": { "predictedDev": 20, "tp": 18, "fpNotDev": 0, "fpMixed": 2, "fn": 1, "precisionStrict": 0.9, "precisionLenient": 1.0, "recall": 0.947, "unclassified": "2/38", "nonHiring": "1/1" },
+      "verdict": "불합격(엄격 90%). 제목에 '개발/사업기획/PM/영업'처럼 직무를 나열한 공고 2건. 사이트 직무 키워드만으로 역할을 정해 PHP 웹 공고가 임베디드가 된 오류 1건 → 나열 제목·PM 제목 미분류, 키워드만 있는 역할은 전산·IT"
+    },
+    {
+      "dictionarySha256": "29b37a1c0c91b2fe81d9ed14cbd965cee9340c81d1d588b01e62e3e84c78b0d0",
+      "final": true,
+      "holdout": "holdout4 (seed 606, 다른 검색어, 38건)",
+      "result": { "predictedDev": 8, "tp": 8, "fpNotDev": 0, "fpMixed": 0, "fn": 2, "unsure": 1, "precisionStrict": 1.0, "precisionWilson95Lower": 0.676, "recall": 0.8, "unclassified": "6/38", "unclassifiedRate": 0.158, "roleCorrect": "4/4", "nonHiring": "2/2", "nonHiringFalsePositive": 0 },
+      "verdict": "합격 기준(정밀도 95% 이상)을 표본에서 충족. 다만 개발 예측 8건이라 신뢰구간 하한은 67.6%로 넓다"
+    }
+  ],
+  "finalVersionOnAllSamples": {
+    "note": "최종 버전을 train·holdout1~3(개발용으로 쓴 자료)에 다시 적용한 값. holdout 수치가 아니다.",
+    "developmentSets": { "predictedDev": 50, "tp": 50, "fp": 0, "fn": 2, "labelledDev": 52 },
+    "unclassifiedByPool": {
+      "generalList": { "jobs": 64, "unclassified": 4, "development": 1, "nonHiring": 1 },
+      "devSearch": { "jobs": 128, "unclassified": 23, "development": 57, "nonHiring": 8 },
+      "all": { "jobs": 192, "unclassified": 27, "rate": 0.141 }
+    }
+  },
+  "generalizableAccuracy": false
+}
