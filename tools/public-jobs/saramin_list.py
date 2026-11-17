@@ -26,8 +26,11 @@ FIELDS = ("company", "title", "location", "experience", "deadline", "education",
 USER_AGENT = "JobAlertHubValidation/0.2"
 SEARCH = "https://www.saramin.co.kr/zf_user/search/recruit"
 DETAIL = "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={}"
-# Developer-oriented searches. Page 1 of every query comes before page 2 of any query.
-QUERIES = ("백엔드", "프론트엔드", "앱개발", "데이터엔지니어", "임베디드", "게임개발", "풀스택", "웹개발")
+# One representative search word per job family (classify/taxonomy.ts), so every family accumulates
+# postings. Page 1 of every query comes before page 2 of any query; the start rotates by day so the
+# 10-page budget covers all families over two runs.
+QUERIES = ("개발자", "사무", "금융", "마케팅", "영업", "디자이너", "영상", "연구원",
+           "생산", "물류", "건축", "간호", "강사", "서비스", "법무")
 MAX_PAGES = 10
 INTERVAL = 2.0
 
@@ -148,9 +151,12 @@ def fetch_page(url):
     return page
 
 
-def plan(queries, max_pages):
-    """Round-robin (query, page) pairs within the page budget."""
+def plan(queries, max_pages, offset=0):
+    """Round-robin (query, page) pairs within the page budget, starting at query `offset`."""
     queries = [clean(q) for q in queries if clean(q)]
+    if queries:
+        offset %= len(queries)
+        queries = queries[offset:] + queries[:offset]
     pairs = []
     for page in range(1, MAX_PAGES + 1):
         for query in queries:
@@ -171,13 +177,13 @@ def absorb(known, job):
     return True
 
 
-def run(queries, out, *, max_pages=MAX_PAGES, fetch=fetch_page, sleep=time.sleep, interval=INTERVAL, now=None):
+def run(queries, out, *, max_pages=MAX_PAGES, offset=0, fetch=fetch_page, sleep=time.sleep, interval=INTERVAL, now=None):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
     now = now or (lambda: datetime.now(timezone.utc).isoformat())
     by_id, order, attempts = {}, [], []
     exhausted, stopped = set(), None
-    for query, number in plan(queries, max_pages):
+    for query, number in plan(queries, max_pages, offset):
         if query in exhausted:
             continue
         url = search_url(query, number)
@@ -216,7 +222,7 @@ def run(queries, out, *, max_pages=MAX_PAGES, fetch=fetch_page, sleep=time.sleep
         print(json.dumps(result, ensure_ascii=False), flush=True)
         if stopped:
             break
-    summary = {"extractorVersion": VERSION, "queries": list(queries), "maxPages": max_pages,
+    summary = {"extractorVersion": VERSION, "queries": list(queries), "offset": offset, "maxPages": max_pages,
                "requested": len(attempts), "http200": sum(a["httpStatus"] == 200 for a in attempts),
                "unique": len(order), "stopped": stopped, "attempts": attempts}
     (out / "run.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -228,6 +234,7 @@ def main():
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--queries", default=",".join(QUERIES))
     parser.add_argument("--max-pages", type=int, choices=range(1, MAX_PAGES + 1), default=MAX_PAGES)
+    parser.add_argument("--offset", type=int, help="first query index (default: rotates by UTC day)")
     parser.add_argument("--html", type=Path, help="offline: extract one saved list page")
     parser.add_argument("--query", default="개발", help="with --html: the search word of the saved page")
     args = parser.parse_args()
@@ -239,7 +246,9 @@ def main():
         (args.out / "batch.json").write_text(json.dumps({"version": 1, "source": "saramin", "jobs": jobs}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({"items": len(jobs), "brokenItems": broken}), flush=True)
         return 0 if jobs else 2
-    result = run(args.queries.split(","), args.out, max_pages=args.max_pages)
+    queries = args.queries.split(",")
+    offset = args.offset if args.offset is not None else datetime.now(timezone.utc).toordinal() * args.max_pages
+    result = run(queries, args.out, max_pages=args.max_pages, offset=offset)
     return 1 if result["stopped"] else 0
 
 

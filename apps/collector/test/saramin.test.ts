@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classifySaraminTags } from '../src/classify/index.js';
+import { readFileSync } from 'node:fs';
+import { classifySaraminTags, FAMILY_IDS } from '../src/classify/index.js';
+import { FAMILY_LABELS, tagFamily } from '../src/classify/saramin-tags.js';
 import { readSaraminBatch, saramin, saraminDeadline, type SaraminObservation } from '../src/providers/saramin.js';
 
 const extracted = (value: string) => ({ value, status: 'extracted' as const, evidence: 'fixture' });
@@ -37,8 +39,8 @@ describe('saramin boundary', () => {
       id: 'saramin:90000001', source: '사람인', company: '(주)예시클라우드', title: '백엔드 개발자',
       url: item.url, applyUrl: item.url,
       raw: { location: '서울 강남구', experience: '신입·경력', deadline: '2026-11-17 17:00 마감' },
-      kind: 'development', role: '백엔드',
-      classification: { method: 'source-tag', version: 'saramin-tags/2', evidence: ['tag:백엔드/서버개발', 'tag:Java'] },
+      kind: 'development', role: '백엔드', families: ['it'],
+      classification: { method: 'source-tag', version: 'saramin-tags/3', evidence: ['tag:백엔드/서버개발', 'tag:Java'] },
       employment: '정규직', tags: ['백엔드/서버개발', 'Java'], description: '',
       details: { headcount: null, education: ['대졸↑'], minimumEducation: null, requirements: [], preferences: null },
     });
@@ -58,36 +60,47 @@ describe('saramin boundary', () => {
   });
 });
 
-describe('saramin-tags/2', () => {
+describe('saramin-tags/3', () => {
   const role = (tags: string[]) => {
-    const { kind, role: r, classification } = classifySaraminTags(tags);
-    return [kind, r, classification.method];
+    const { kind, role: r, families, classification } = classifySaraminTags(tags);
+    return [kind, r, classification.method, families.join('+')];
   };
   it.each([
-    [['백엔드/서버개발', 'Java'], ['development', '백엔드', 'source-tag']],
-    [['프론트엔드', '백엔드/서버개발'], ['development', '풀스택', 'source-tag']],
-    [['앱개발', 'AI(인공지능)'], ['development', '전산·IT', 'source-tag']], // several roles: dev, generic role
-    [['Java', 'Python', 'JSP'], ['development', '전산·IT', 'source-tag']],
-    [['React', 'TypeScript'], ['development', '프론트엔드', 'source-tag']], // a single skill hint
-    [['React', 'Spring'], ['development', '전산·IT', 'source-tag']], // conflicting hints fall back to generic
-    [['임베디드', '회로설계', 'H/W'], ['development', '임베디드', 'source-tag']], // hardware tags are neutral
-    [['앱개발', '웹개발', '기구설계'], ['other', '', 'none']], // dev and non-dev together
-    [['생산직', '품질관리'], ['other', '기타', 'source-tag']],
-    [['게임개발', 'QA/테스터'], ['other', '', 'none']], // QA is not a development role
-    [['R&D', '연구원'], ['other', '', 'none']], // only neutral tags
-    [[], ['other', '', 'none']],
+    [['백엔드/서버개발', 'Java'], ['development', '백엔드', 'source-tag', 'it']],
+    [['프론트엔드', '백엔드/서버개발'], ['development', '풀스택', 'source-tag', 'it']],
+    [['앱개발', 'AI(인공지능)'], ['development', '전산·IT', 'source-tag', 'it']], // several roles: dev, generic role
+    [['Java', 'Python', 'JSP'], ['development', '전산·IT', 'source-tag', 'it']],
+    [['React', 'TypeScript'], ['development', '프론트엔드', 'source-tag', 'it']], // a single skill hint
+    [['React', 'Spring'], ['development', '전산·IT', 'source-tag', 'it']], // conflicting hints fall back to generic
+    [['임베디드', '회로설계', 'H/W'], ['development', '임베디드', 'source-tag', 'it']], // weak tags yield to dev
+    [['앱개발', '웹개발', '기구설계'], ['other', '', 'none', '']], // dev and another family together
+    [['게임개발', 'QA/테스터'], ['other', '', 'none', '']], // QA is not a development role
+    [['생산직', '품질관리'], ['other', '생산·품질·제조', 'source-tag', 'production']],
+    [['SNS마케팅', '브랜드디자인', '온라인마케팅'], ['other', '마케팅·홍보', 'source-tag', 'marketing+design']],
+    [['간호조무사', '3교대', '피부과'], ['other', '의료·보건·복지', 'source-tag', 'medical']],
+    [['R&D', '연구원'], ['other', '연구·엔지니어링', 'source-tag', 'research']], // weak tags count without dev tags
+    [['영어', '2교대'], ['other', '', 'none', '']], // only unknown tags
+    [[], ['other', '', 'none', '']],
   ])('%j → %j', (tags, expected) => {
     expect(role(tags)).toEqual(expected);
   });
+  it('maps every family label exactly as the web taxonomy shows it', () => {
+    const web = readFileSync(new URL('../../web/lib/taxonomy.js', import.meta.url), 'utf8');
+    const pairs = [...web.matchAll(/\{ id: '(\w+)', label: '([^']+)' \}/gu)].map(([, id, label]) => [id, label]);
+    expect(Object.fromEntries(pairs)).toEqual(FAMILY_LABELS);
+    expect(Object.keys(FAMILY_LABELS)).toEqual([...FAMILY_IDS]);
+    expect(['금융상품영업', '법률사무원', '건축기사', '물류관리', '영상편집', '바리스타강사'].map(tagFamily))
+      .toEqual(['finance', 'public', 'construction', 'logistics', 'media', 'education']);
+  });
   it('records the deciding tags as evidence', () => {
     expect(classifySaraminTags(['Java', '게임개발']).classification.evidence).toEqual(['tag:게임개발', 'tag:Java']);
-    expect(classifySaraminTags(['웹디자인', 'HTML']).classification).toEqual({ method: 'none', version: 'saramin-tags/2', evidence: ['tag:HTML', 'tag:웹디자인'] });
+    expect(classifySaraminTags(['웹디자인', 'HTML']).classification).toEqual({ method: 'none', version: 'saramin-tags/3', evidence: ['tag:HTML', 'tag:웹디자인'] });
   });
   it('lets a title veto only downgrade to unclassified, never assign a role', () => {
     expect(classifySaraminTags(['프론트엔드'], '[재택] 프론트엔드 교육과정 학습튜터 채용')).toEqual({
-      kind: 'other', role: '', classification: { method: 'none', version: 'saramin-tags/2', evidence: ['title:튜터', 'tag:프론트엔드'] },
+      kind: 'other', role: '', families: [], classification: { method: 'none', version: 'saramin-tags/3', evidence: ['title:튜터', 'tag:프론트엔드'] },
     });
-    expect(classifySaraminTags(['생산직'], '강사 채용').role).toBe('기타');
+    expect(classifySaraminTags(['생산직'], '강사 채용').role).toBe('생산·품질·제조');
     expect(classifySaraminTags(['프론트엔드'], '프론트엔드 개발자').role).toBe('프론트엔드');
   });
 });

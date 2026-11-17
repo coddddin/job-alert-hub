@@ -54,6 +54,7 @@ class ExtractTests(unittest.TestCase):
             search_url("백엔드", 11)
         self.assertEqual(plan(["a", "b"], 3), [("a", 1), ("b", 1), ("a", 2)])
         self.assertEqual(len(plan(["a"], 99)), 10)
+        self.assertEqual(plan(["a", "b", "c"], 2, offset=4), [("b", 1), ("c", 1)])  # rotation by day
 
 
 class RunTests(unittest.TestCase):
