@@ -1,5 +1,6 @@
 import type { CollectedJob } from '../job.js';
 import type { Provider } from './provider.js';
+import { UNCLASSIFIED } from '../classify/index.js';
 
 export const publicFields = ['company', 'title', 'location', 'experience', 'deadline'] as const;
 export type PublicField = typeof publicFields[number];
@@ -65,7 +66,7 @@ function toJob(item: PublicJobObservation): CollectedJob | null {
     url: item.url, applyUrl: item.url,
     raw: { location: location.value ?? '', experience: experience.value ?? '', deadline: deadline.value ?? '' },
     // No invented job classification, company homepage, education or requirements.
-    kind: 'other', role: '', employment: '', tags: [], description: '', details: null,
+    ...UNCLASSIFIED, employment: '', tags: [], description: '', details: null,
   };
 }
 

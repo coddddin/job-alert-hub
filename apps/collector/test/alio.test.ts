@@ -72,6 +72,8 @@ describe('toJob', () => {
       raw: { experience: '신입+경력', location: '서울,전남광주', deadline: '20261117' },
       kind: 'development',
       role: '전산·IT',
+      families: ['office', 'it'],
+      classification: { method: 'source-code', version: 'ncs-map/1', evidence: ['NCS:정보통신'] },
       employment: '정규직',
       tags: ['경영.회계.사무', '정보통신'],
       description: '채용 3명 · 학력무관',
@@ -93,6 +95,7 @@ describe('toJob', () => {
     const job = toJob({ ...item, ncsCdNmLst: '건설,기계' });
     expect(job.kind).toBe('other');
     expect(job.role).toBe('건설');
+    expect(job.classification?.evidence).toEqual(['NCS:건설']);
   });
 
   it('우대 조건이 있으면 남긴다', () => {
@@ -198,5 +201,15 @@ describe('alio().collect', () => {
   it('JSON이 아닌 응답은 HTTP 상태로 알린다', async () => {
     const fetch = fakeFetch(() => new Response('<html>Bad Gateway</html>', { status: 502 }));
     await expect(alio('key').collect(fetch)).rejects.toMatchObject({ code: 'HTTP_502' });
+  });
+});
+
+describe('직무군', () => {
+  it('수집기와 화면의 직무군 ID가 같다', async () => {
+    // 화면 쪽은 타입 없는 JS라 주소로 불러온다.
+    const url = new URL('../../web/lib/taxonomy.js', import.meta.url).href;
+    const { FAMILY_IDS: web } = (await import(url)) as { FAMILY_IDS: readonly string[] };
+    const { FAMILY_IDS } = await import('../src/classify/taxonomy.js');
+    expect([...web]).toEqual([...FAMILY_IDS]);
   });
 });

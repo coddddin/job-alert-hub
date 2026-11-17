@@ -1,5 +1,6 @@
 import type { CollectedJob, JobDetails } from '../job.js';
 import { ProviderError, type FetchLike, type Provider, type ProviderResult } from './provider.js';
+import { classifyNcs } from '../classify/index.js';
 
 /**
  * 공공데이터포털 `재정경제부_공공기관 채용정보 조회서비스` (data.go.kr/data/15125273).
@@ -134,7 +135,6 @@ function details(item: AlioItem): JobDetails {
 /** 응답 한 건을 공통 형식으로 바꾼다. 경력·근무지·마감은 해석하지 않고 원문 그대로 넘긴다. */
 export function toJob(item: AlioItem): CollectedJob {
   const fields = splitList(item.ncsCdNmLst);
-  const isIt = fields.includes('정보통신');
   const employment = splitList(item.hireTypeNmLst).join(' · ') || '미기재';
   const education = splitList(item.acbgCondNmLst).join(' · ') || '미기재';
   const replacement = item.replmprYn === 'Y' ? ' · 대체인력' : '';
@@ -148,8 +148,7 @@ export function toJob(item: AlioItem): CollectedJob {
     url: url === '' ? null : url,
     applyUrl: `${DETAIL_URL}${String(item.recrutPblntSn)}`,
     raw: { experience: item.recrutSeNm, location: item.workRgnNmLst, deadline: item.pbancEndYmd },
-    kind: isIt ? 'development' : 'other',
-    role: isIt ? '전산·IT' : (fields[0] ?? '기타'),
+    ...classifyNcs(fields),
     employment,
     tags: fields,
     // `학력무관` 하나뿐이면 `학력 학력무관`이 되지 않게 그대로 쓴다.
