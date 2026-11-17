@@ -31,11 +31,12 @@ jobs:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
       # Trusted Publishing은 npm 11.5.1 이상이 필요하다. Node 24에 들어 있는 npm을 쓴다.
+      # registry-url을 주지 않는다. 주면 setup-node가 NODE_AUTH_TOKEN에 가짜 토큰(XXXXX-…)을 넣은
+      # .npmrc를 만들고, npm이 OIDC 대신 그 토큰으로 올리다가 E404로 실패한다(0.4.1 배포 실패 원인).
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Decide
         id: decide
@@ -67,7 +68,14 @@ jobs:
 
       - if: steps.decide.outputs.publish == 'true'
         name: Publish (Trusted Publishing)
-        run: npm publish --provenance --access public
+        run: |
+          npm --version
+          # 토큰이 하나라도 남아 있으면 OIDC 대신 그 토큰을 쓰므로 미리 막는다.
+          if [ -n "${NODE_AUTH_TOKEN:-}" ] || grep -qs '_authToken' ~/.npmrc .npmrc; then
+            echo "::error::npm 토큰 설정이 남아 있습니다. Trusted Publishing(OIDC)만 쓰도록 제거하세요."
+            exit 1
+          fi
+          npm publish --provenance --access public
 
       - if: steps.decide.outputs.publish == 'true'
         name: Tag and GitHub Release
