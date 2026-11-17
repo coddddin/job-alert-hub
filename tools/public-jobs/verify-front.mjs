@@ -13,6 +13,10 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { createServer } from '../../apps/web/server.mjs';
+import { normalizeJob } from '../../apps/web/lib/normalize-job.js';
+import { defaults, matchJob, notificationCandidates } from '../../apps/web/lib/matching.js';
+import { initialState } from '../../apps/web/lib/state.js';
+import { FAMILIES } from '../../apps/web/lib/taxonomy.js';
 
 const { values } = parseArgs({ options: { combined: { type: 'string' }, base: { type: 'string' }, shots: { type: 'string' } } });
 if (!values.combined || !values.base) throw new Error('Usage: verify-front.mjs --combined merged.json --base alio.json');
@@ -20,6 +24,18 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const snapshot = JSON.parse(await readFile(values.combined, 'utf8'));
 const count = name => snapshot.jobs.filter(job => job.id.startsWith(`${name}:`)).length;
 const log = {};
+const privateSources = snapshot.sources.map(source => source.name).filter(name => name !== 'alio');
+const TAGS = { jobkorea: '잡코리아', saramin: '사람인' };
+// Independent expectation for the personal tab and alerts: the same library rules applied in Node,
+// with the filters the page sets from a first-visit answer (app.js applyProfile).
+const normalized = snapshot.jobs.map(job => normalizeJob({ ...job, skills: job.tags ?? [] }, snapshot.today));
+const familyIds = labels => labels.map(label => FAMILIES.find(family => family.label === label).id);
+const profileFilters = ({ families, career, region }) => ({ family: 'mine', families: familyIds(families), career, region, role: 'all' });
+const expectedMatch = (name, profile) => normalized.filter(job => job.id.startsWith(`${name}:`) &&
+  matchJob(job, { ...defaults, ...profileFilters(profile) }).status === 'match').length;
+const expectedAlerts = (name, profile) => notificationCandidates(normalized, { ...initialState().notifications, ...profileFilters(profile) })
+  .filter(job => job.id.startsWith(`${name}:`)).length;
+const sum = values => values.reduce((a, b) => a + b, 0);
 
 async function serve(file) {
   const server = createServer({ snapshot: file });
@@ -78,35 +94,42 @@ try {
   log.load = { edition, colophon, startTab: 'all', rows: snapshot.jobs.length };
   await shot(page, '1-load');
 
-  // 2. Source filter.
+  // 2. Source filter, with the short source tag on every row.
   const perSource = {};
   for (const { name } of snapshot.sources) {
     await page.selectOption('#filter-source', name);
     perSource[name] = await rows(page);
     assert.equal(perSource[name], count(name));
+    if (TAGS[name]) assert.equal(await page.locator(`#job-list .source-tag[data-source="${name}"]`).count(), count(name));
   }
   log.sourceFilter = perSource;
 
-  // 3. Search a real private job by company name within the JobKorea source.
-  await page.selectOption('#filter-source', 'jobkorea');
-  const target = snapshot.jobs.find(job => job.id.startsWith('jobkorea:'));
-  await page.fill('input[name="keyword"]', target.company);
-  const hits = await rows(page);
-  assert.ok(hits >= 1);
-  assert.ok(await page.locator(`[data-detail="${target.id}"]`).isVisible());
-  log.search = { keyword: target.company, hits };
-  await shot(page, '3-search');
-
-  // 4. Detail and original link.
-  await page.click(`[data-detail="${target.id}"]`);
-  await page.waitForSelector('#job-dialog[open]');
-  const dialog = await page.textContent('#dialog-content');
-  assert.ok(dialog.includes(target.title) && dialog.includes('잡코리아'));
-  const hrefs = await page.locator('#dialog-content a[href]').evaluateAll(links => links.map(link => link.href));
-  assert.ok(hrefs.includes(target.url), JSON.stringify(hrefs));
-  log.detail = { id: target.id, title: target.title, originalLink: target.url };
-  await shot(page, '4-detail');
-  await page.click('#close-dialog');
+  // 3-4. Per private source: search a real job by company, open its detail, check the original link.
+  log.search = {};
+  log.detail = {};
+  for (const name of privateSources) {
+    await page.selectOption('#filter-source', name);
+    const target = snapshot.jobs.find(job => job.id.startsWith(`${name}:`));
+    await page.fill('input[name="keyword"]', target.company);
+    const hits = await rows(page);
+    assert.ok(hits >= 1);
+    assert.ok(await page.locator(`[data-detail="${target.id}"]`).isVisible());
+    assert.equal(await page.locator(`[data-detail="${target.id}"]`).locator('xpath=..').locator('.source-tag').textContent(), TAGS[name]);
+    log.search[name] = { keyword: target.company, hits };
+    await shot(page, `3-search-${name}`);
+    await page.click(`[data-detail="${target.id}"]`);
+    await page.waitForSelector('#job-dialog[open]');
+    const dialog = await page.textContent('#dialog-content');
+    assert.ok(dialog.includes(target.title) && dialog.includes(TAGS[name]), dialog);
+    const hrefs = await page.locator('#dialog-content a[href]').evaluateAll(links => links.map(link => link.href));
+    assert.ok(hrefs.includes(target.url), JSON.stringify(hrefs));
+    log.detail[name] = { id: target.id, title: target.title, originalLink: target.url };
+    await shot(page, `4-detail-${name}`);
+    await page.click('#close-dialog');
+    await page.fill('input[name="keyword"]', '');
+  }
+  const target = snapshot.jobs.find(job => job.id.startsWith(`${privateSources.at(-1)}:`));
+  await page.selectOption('#filter-source', privateSources.at(-1));
 
   // 5. Scrap, then confirm it survives a reload and appears in the saved view.
   await page.click(`[data-save="${target.id}"]`);
@@ -117,26 +140,38 @@ try {
   await page.click('[data-tab="all"]');
   assert.equal(await page.textContent('#saved-count'), '1');
   assert.ok(await page.locator(`[data-detail="${target.id}"]`).isVisible());
-  log.scrap = { savedCount: 1, persistedAfterReload: true };
+  log.scrap = { id: target.id, savedCount: 1, persistedAfterReload: true };
 
-  // 6. Personal tab and alerts: the same first-visit answers give the same results as ALIO-only.
+  // 6. Personal tab and alerts with the same first-visit answers as ALIO-only: ALIO results are
+  // unchanged; private jobs enter only as the same library rules say (unclassified JobKorea stays out).
   await page.click('[data-view="feed"]');
+  await page.selectOption('#filter-source', 'all');
   await page.click('#open-onboarding');
   await answer(page, IT_NEW_SEOUL);
   assert.equal(await page.locator('[data-tab="match"]').getAttribute('aria-selected'), 'true');
   const match = Number(await page.textContent('#tab-match'));
-  assert.equal(match, refMatch);
-  assert.equal(await page.locator('#job-list [data-detail^="jobkorea:"]').count(), 0);
+  const inMatch = { alio: await page.locator('#job-list [data-detail^="alio:"]').count() };
+  for (const name of privateSources) {
+    inMatch[name] = await page.locator(`#job-list [data-detail^="${name}:"]`).count();
+    assert.equal(inMatch[name], expectedMatch(name, IT_NEW_SEOUL), name);
+  }
+  assert.equal(inMatch.alio, refMatch);
+  assert.equal(match, sum(Object.values(inMatch)));
   await page.click('[data-view="alerts"]');
   const alerts = await page.locator('#alert-preview li:not(.muted)').count();
-  assert.equal(alerts, refAlerts);
-  log.regression = { match, alerts, jobkoreaInMatch: 0 };
+  const privateAlerts = Object.fromEntries(privateSources.map(name => [name, expectedAlerts(name, IT_NEW_SEOUL)]));
+  assert.equal(alerts, refAlerts + sum(Object.values(privateAlerts)));
+  log.regression = { match, inMatch, alerts, privateAlerts, alioAlertsUnchanged: refAlerts };
 
   // 7. A non-IT user: only their job family reaches the personal tab, and the answer survives a reload.
   await page.click('[data-view="feed"]');
   await page.click('#open-onboarding');
-  await answer(page, { families: ['의료·보건·복지'], career: 'any', region: 'all' });
+  const MEDICAL = { families: ['의료·보건·복지'], career: 'any', region: 'all' };
+  await answer(page, MEDICAL);
   const medical = await page.locator('#job-list [data-detail]').evaluateAll(buttons => buttons.map(b => b.dataset.detail));
+  // Saramin fills families from site tags, so its medical postings reach a medical profile too.
+  const saraminMedical = medical.filter(id => id.startsWith('saramin:')).length;
+  if (privateSources.includes('saramin')) assert.equal(saraminMedical, expectedMatch('saramin', MEDICAL));
   const byId = new Map(snapshot.jobs.map(job => [job.id, job]));
   assert.ok(medical.length > 0);
   assert.ok(medical.every(id => byId.get(id)?.families?.includes('medical')), 'non-medical job in personal tab');
@@ -145,7 +180,7 @@ try {
   await page.waitForSelector('#job-list tr');
   assert.equal(await page.locator('#onboarding').isVisible(), false);
   assert.match(await page.textContent('#filter-family'), /내 관심 직무 \(의료·보건·복지\)/);
-  log.personalized = { profile: '의료·보건·복지/상관없음/전국', match: medical.length, allMedical: true, persistedAfterReload: true };
+  log.personalized = { profile: '의료·보건·복지/상관없음/전국', match: medical.length, saraminMedical, allMedical: true, persistedAfterReload: true };
 
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ ok: true, ...log }, null, 2));

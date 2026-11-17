@@ -1,0 +1,225 @@
+{
+  "date": "2026-11-17",
+  "userAgent": "JobAlertHubValidation/0.2",
+  "extractorVersion": "saramin-list/1",
+  "note": "Aggregates only. Raw observations and per-posting review labels stay in .scrapling-local/ (not committed). Reviewer: the coding agent, not an independent human.",
+  "collection": {
+    "main": {
+      "queries": [
+        "백엔드",
+        "프론트엔드",
+        "앱개발",
+        "데이터엔지니어",
+        "임베디드",
+        "게임개발",
+        "풀스택",
+        "웹개발"
+      ],
+      "pagesRequested": 10,
+      "http200": 10,
+      "stopped": null,
+      "listItems": 400,
+      "observations": 398,
+      "uniquePostings": 387,
+      "brokenItems": 0,
+      "fieldsNotExtracted": {
+        "employment": 4
+      },
+      "tagsTruncated": 263,
+      "duplicateTagSubsets": 11,
+      "merged": {
+        "alio": "508/508",
+        "jobkorea": "37/37",
+        "saramin": "387/387",
+        "total": 932
+      }
+    },
+    "holdout": {
+      "queries": [
+        "자바",
+        "React",
+        "안드로이드",
+        "iOS",
+        "파이썬",
+        "서버개발",
+        "AI엔지니어",
+        "펌웨어",
+        "유니티",
+        "SI개발"
+      ],
+      "pagesRequested": 10,
+      "http200": 10,
+      "stopped": null,
+      "uniquePostings": 373,
+      "unseenInMain": 316
+    },
+    "families": {
+      "note": "Production queries since saramin-tags/3: one search word per job family, start rotated by UTC day, 10 pages per run.",
+      "dictionary": {
+        "queries": [
+          "개발자",
+          "사무",
+          "금융",
+          "마케팅",
+          "영업",
+          "디자이너",
+          "영상",
+          "연구원",
+          "생산",
+          "물류",
+          "건축",
+          "간호",
+          "강사",
+          "서비스",
+          "법무"
+        ],
+        "pagesRequested": 15,
+        "http200": 15,
+        "stopped": null,
+        "uniquePostings": 570,
+        "distinctTags": 497
+      },
+      "holdout": {
+        "queries": [
+          "회계",
+          "보험",
+          "홍보",
+          "판매",
+          "그래픽",
+          "방송",
+          "엔지니어",
+          "품질",
+          "운전",
+          "설비",
+          "요양",
+          "교사",
+          "조리",
+          "경비",
+          "소방"
+        ],
+        "pagesRequested": 15,
+        "http200": 15,
+        "stopped": null,
+        "uniquePostings": 592,
+        "unseenElsewhere": 558
+      },
+      "merged": {
+        "batch": "dictionary run, offset 0, 10 pages",
+        "alio": "508/508",
+        "jobkorea": "37/37",
+        "saramin": "382/382",
+        "total": 927
+      }
+    }
+  },
+  "classification": {
+    "saramin-tags/1": {
+      "reviewSet": "main run (also used to write v2)",
+      "devSample": {
+        "size": 60,
+        "trueDevelopment": 55,
+        "precision": 0.917,
+        "falsePositives": [
+          "game QA tester",
+          "game dev QA",
+          "web service planner",
+          "learning tutor",
+          "embedded hardware"
+        ]
+      },
+      "nonDevAssigned": {
+        "size": 7,
+        "correct": 7
+      },
+      "unclassified": {
+        "size": 14,
+        "missedDevelopment": 2
+      },
+      "rates": {
+        "development": 366,
+        "other": 7,
+        "unclassified": 14
+      }
+    },
+    "saramin-tags/2": {
+      "reviewSet": "holdout postings not seen in the main run (same day, different queries)",
+      "rates": {
+        "development": 282,
+        "other": 6,
+        "unclassified": 28,
+        "total": 316,
+        "unclassifiedRate": 0.089
+      },
+      "devSample": {
+        "size": 60,
+        "trueDevelopment": 58,
+        "precision": 0.967,
+        "wilson95Lower": 0.886,
+        "falsePositives": [
+          "SI/SW project manager",
+          "multi-department posting (firmware + sales + planning)"
+        ]
+      },
+      "specificRoleSample": {
+        "size": 43,
+        "correct": 36,
+        "precision": 0.837
+      },
+      "nonDevAssigned": {
+        "size": 6,
+        "correct": 6
+      },
+      "unclassified": {
+        "size": 28,
+        "missedDevelopment": 10,
+        "note": "5 firmware+hardware postings downgraded by the 하드웨어 title veto or mixed tags; 5 with unknown or non-dev tags (BI 엔지니어, ETL, R&D only, 웹기획, QA/테스터)"
+      },
+      "mainRunRates": {
+        "development": 355,
+        "other": 10,
+        "unclassified": 22,
+        "total": 387
+      }
+    },
+    "saramin-tags/3": {
+      "change": "Maps tags to the 16 job families (classify/taxonomy.ts). Development rules unchanged from v2; 핀테크 and research/hardware tags are weak (ignored next to development tags).",
+      "itRegressionOnV2Holdout": {
+        "size": 94,
+        "changed": 1,
+        "note": "AI engineer posting with a 전표입력 tag became unclassified (development + office tags)"
+      },
+      "familyHoldout": {
+        "rates": {
+          "classified": 513,
+          "unclassified": 45,
+          "total": 558,
+          "unclassifiedRate": 0.081,
+          "multiFamily": 146
+        },
+        "sample": {
+          "size": 100,
+          "firstFamilyCorrect": 95,
+          "allFamiliesCorrect": 91
+        },
+        "firstFamilyErrors": [
+          "insurance exam proctor → finance",
+          "teacher post with office tags → office",
+          "postnatal care nurse → service (조리원)",
+          "quality/production team with research tags → research",
+          "bio lab training teacher → research"
+        ],
+        "unclassifiedGaps": [
+          "사회복지사",
+          "약국/조제보조",
+          "영양사",
+          "어린이집/유치원",
+          "미화원",
+          "작가",
+          "기술엔지니어/인프라/네트워크",
+          "반도체 (weak)"
+        ],
+        "note": "Gaps are recorded, not added: they were found on the holdout. A v4 must be measured on another sample."
+      }
+    }
+  }
+}
