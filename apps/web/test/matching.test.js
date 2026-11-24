@@ -88,3 +88,11 @@ test('첫 방문 답(직무군·경력)으로 맞춤을 고르고, 직무를 모
   assert.deepEqual(saved.profile, { families: ['medical'], career: 'any', region: 'all' });
   assert.equal(sanitizeState({ version: 1, profile: { families: [] } }).profile, null);
 });
+test('직무를 확정 못 한 IT 후보는 IT 관심자에게 확인 필요로 보이고 알림에도 들어간다', () => {
+  const base = { ...defaults, family: 'mine', families: ['it'], career: 'any', region: 'all' };
+  const candidate = { ...jobs[0], id: 'jobkorea:3', kind: 'other', role: '', families: [], classification: { method: 'none', version: 'keyword-rules/1', evidence: ['title:보안 엔지니어'], candidates: ['it'] } };
+  assert.deepEqual(matchJob(candidate, base), { status: 'review', reason: 'IT·개발 후보 · 직무 확인 필요', candidate: true });
+  assert.deepEqual(notificationCandidates([candidate], base).map(job => job.id), ['jobkorea:3']);
+  // 다른 직무군 관심자에게는 후보가 아니므로 기존처럼 분류 대기(알림 없음).
+  assert.deepEqual(notificationCandidates([candidate], { ...base, families: ['medical'] }), []);
+});

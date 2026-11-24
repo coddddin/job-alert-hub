@@ -69,6 +69,24 @@ const undecided = (hits: readonly Hit[]): Classified => ({
   classification: { method: 'none', version: KEYWORD_RULES_VERSION, evidence: evidence(hits) },
 });
 
+/**
+ * 제목·사이트 직무 키워드·비고에서 찾은 개발 신호(스킬 목록은 제외). 확정에는 쓰지 않고,
+ * 미분류 공고를 "IT 후보"로 표시해 놓치지 않게 하는 데만 쓴다.
+ */
+// 후보 표시 전용 단어(확정 사전 keyword-rules.v1.json에는 넣지 않는다: 확정 정밀도를 holdout으로 잰 사전이라).
+const CANDIDATE_IT = compile([
+  'Data Engineering', 'Data Engineer', '데이터 엔지니어', '데이터파이프라인', '데이터 플랫폼', 'AI Engineer', 'AI 엔지니어',
+  'ML Engineer', '머신러닝', 'MLOps', 'LLM', '네트워크 엔지니어', '네트워크관리', '시스템 엔지니어', '시스템운영', '인프라',
+  'SRE', 'DBA', '클라우드', 'DevOps', '보안 엔지니어', '정보보안', '소프트웨어', 'SW', '프로그래머', '개발자',
+]);
+
+export function developmentEvidence(title: string, signals: JobSignals | undefined): string[] {
+  if (!signals) return [];
+  const items = texts(title, signals).filter(([field]) => field !== 'skill');
+  const hits = [...dictionary.roles.flatMap(({ words }) => find(items, words)), ...find(items, dictionary.development), ...find(items, CANDIDATE_IT)];
+  return [...new Set(evidence(hits))];
+}
+
 /** 잡코리아 공고의 제목과 원문 신호로 개발 직무·역할을 정한다. 신호가 없으면 미분류. */
 export function classifyKeywords(title: string, signals: JobSignals | undefined): Classified {
   if (!signals) return UNCLASSIFIED;

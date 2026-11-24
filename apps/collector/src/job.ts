@@ -43,6 +43,8 @@ export interface JobClassification {
   readonly version: string;
   /** 판단에 쓴 코드·태그·키워드. 예: `NCS:정보통신` */
   readonly evidence: readonly string[];
+  /** 확정하지 못했지만 근거가 있는 직무군 후보. 맞춤·알림에 "확인 필요"로 넣어 놓치지 않게 한다. */
+  readonly candidates?: readonly string[];
   /** 교육생 모집·광고처럼 채용이 아닌 공고. */
   readonly nonHiring?: boolean;
 }

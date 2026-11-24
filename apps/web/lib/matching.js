@@ -18,13 +18,18 @@ export function familiesOf(job) {
   return job.families ?? (job.kind === 'development' ? ['it'] : []);
 }
 
-/** 선택한 직무군에 드는지: 'yes' | 'no' | 'unknown'(분류 대기). */
+/** 확정하지 못했지만 근거가 있는 직무군 후보(예: 개발 신호가 있는 미분류 잡코리아 공고). */
+export function candidatesOf(job) {
+  return job.classification?.candidates ?? [];
+}
+
+/** 선택한 직무군에 드는지: 'yes' | 'no' | 'candidate'(후보로 해당) | 'unknown'(분류 대기). */
 export function familyFit(job, filters) {
   const choice = filters.family ?? defaults.family;
   const wanted = choice === 'mine' ? (filters.families ?? []) : choice === 'all' ? [] : [choice];
   if (!wanted.length) return 'yes';
   const families = familiesOf(job);
-  if (!families.length) return 'unknown';
+  if (!families.length) return candidatesOf(job).some(family => wanted.includes(family)) ? 'candidate' : 'unknown';
   return families.some(family => wanted.includes(family)) ? 'yes' : 'no';
 }
 
@@ -59,6 +64,7 @@ export function matchJob(job, filters = defaults) {
   if (region === 'no') return { status: 'exclude', reason: '선택한 근무지 아님' };
   if (!keywordFit(job, filters.keyword)) return { status: 'exclude', reason: '검색어 불일치' };
   // 직무를 모르는 공고는 버리지 않고 확인 필요로 둔다. 알림에는 넣지 않는다.
+  if (family === 'candidate') return { status: 'review', reason: `${candidatesOf(job).map(familyLabel).join('·')} 후보 · 직무 확인 필요`, candidate: true };
   if (family === 'unknown') return { status: 'review', reason: '직무 분류 대기 · 원문에서 직무 확인' };
   if (job.experience === 'unknown' || job.ambiguous || region === 'unknown') {
     return { status: 'review', reason: '근무지 또는 지원 조건 확인 필요' };
@@ -67,7 +73,14 @@ export function matchJob(job, filters = defaults) {
   return { status: 'match', reason: `${families} · ${filters.region === 'all' ? '지역 제한 없음' : filters.region + ' 근무'} · ${job.experience === 'unspecified' ? '경력무관' : careerLabel[career]}` };
 }
 
-/** 알림은 출처·규칙으로 직무를 정한 공고만. 모델 추정은 맞춤 탭에만 보인다(설계 8.6). */
+/**
+ * 알림 대상: 직무를 확정한 일치 공고 + 내 직무군 후보인 공고(놓치지 않게, 화면에서 "확인 필요"로 표시).
+ * 모델 추정은 알림에 넣지 않는다(설계 8.6).
+ */
 export function notificationCandidates(jobs, filters, bookmarksOnly = null) {
-  return jobs.filter(job => job.classification?.method !== 'model' && matchJob(job, filters).status === 'match' && (!bookmarksOnly || bookmarksOnly.includes(job.id)));
+  return jobs.filter(job => {
+    if (job.classification?.method === 'model' || (bookmarksOnly && !bookmarksOnly.includes(job.id))) return false;
+    const result = matchJob(job, filters);
+    return result.status === 'match' || result.candidate === true;
+  });
 }
