@@ -22,7 +22,22 @@ def reference_html(page):
     return '<html><body>' + '\n'.join(pieces) + '</body></html>'
 
 
-def run(links, out, *, fetch=fetch_page, sleep=time.sleep, interval=2, reference=reference_html):
+RETRY_WAIT = 15
+
+
+def fetch_once_more(fetch, url, sleep, wait):
+    """One retry after a pause for network-level errors only (see saramin_list.fetch_once_more).
+    HTTP statuses, including blocking signals, are never retried."""
+    try:
+        return fetch(url)
+    except HttpStatusError:
+        raise
+    except Exception:  # noqa: BLE001
+        sleep(wait)
+        return fetch(url)
+
+
+def run(links, out, *, fetch=fetch_page, sleep=time.sleep, interval=2, reference=reference_html, retry_wait=RETRY_WAIT):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
     attempts, jobs = [], []
@@ -30,7 +45,7 @@ def run(links, out, *, fetch=fetch_page, sleep=time.sleep, interval=2, reference
     for url in links:
         sleep(interval)
         try:
-            page = fetch(url)
+            page = fetch_once_more(fetch, url, sleep, retry_wait)
             observed = datetime.now(timezone.utc).isoformat()
             job = extract(page, url, observed)
             jobs.append(job)

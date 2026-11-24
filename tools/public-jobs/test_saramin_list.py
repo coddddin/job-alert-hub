@@ -97,9 +97,17 @@ class RunTests(unittest.TestCase):
         self.assertIn("duplicate:conflict", jobs[1]["warnings"])
         self.assertEqual(jobs[2]["tags"], ["생산직", "품질관리"])  # same fields, another visible tag subset
 
-    def test_network_failure_stops_without_retry(self):
-        summary, _, calls, _ = self.run_with([TimeoutError()])
-        self.assertEqual((len(calls), summary["http200"], summary["stopped"]), (1, 0, "access_or_service_error"))
+    def test_network_failure_gets_one_retry_then_stops(self):
+        # 2026-11-24: 한 번의 연결 지연(20초 초과)으로 회차 전체가 멈췄다. 네트워크 오류만 15초 뒤 한 번 더.
+        summary, out, calls, sleeps = self.run_with([TimeoutError(), page()], queries=("백엔드",), max_pages=1)
+        self.assertEqual((len(calls), summary["http200"], summary["stopped"]), (2, 1, None))
+        self.assertEqual(sleeps, [2.0, 15.0])
+        self.assertTrue(summary["attempts"][0]["retried"])
+        summary, _, calls, _ = self.run_with([TimeoutError(), TimeoutError()])
+        self.assertEqual((len(calls), summary["http200"], summary["stopped"]), (2, 0, "access_or_service_error"))
+        # HTTP 상태(차단 신호 포함)는 재시도하지 않는다.
+        summary, _, calls, _ = self.run_with([HttpStatusError(429)])
+        self.assertEqual((len(calls), summary["stopped"]), (1, "access_or_service_error"))
         summary, _, calls, _ = self.run_with([HttpStatusError(302)])
         self.assertEqual((len(calls), summary["stopped"]), (1, "unexpected_status"))
 

@@ -177,7 +177,23 @@ def absorb(known, job):
     return True
 
 
-def run(queries, out, *, max_pages=MAX_PAGES, offset=0, fetch=fetch_page, sleep=time.sleep, interval=INTERVAL, now=None):
+RETRY_WAIT = 15.0
+
+
+def fetch_once_more(fetch, url, sleep, wait):
+    """Network errors (timeout, refused connection) get exactly one retry after a pause: on 2026-11-24 the
+    site intermittently took 3.8s to 20s+ to accept a connection, and one slow connect stopped whole runs.
+    HTTP statuses are never retried; 401/403/429/5xx still stop the run at once (a blocking signal)."""
+    try:
+        return fetch(url), False
+    except HttpStatusError:
+        raise
+    except Exception:  # noqa: BLE001 - network-level failure only
+        sleep(wait)
+        return fetch(url), True
+
+
+def run(queries, out, *, max_pages=MAX_PAGES, offset=0, fetch=fetch_page, sleep=time.sleep, interval=INTERVAL, now=None, retry_wait=RETRY_WAIT):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
     now = now or (lambda: datetime.now(timezone.utc).isoformat())
@@ -189,7 +205,7 @@ def run(queries, out, *, max_pages=MAX_PAGES, offset=0, fetch=fetch_page, sleep=
         url = search_url(query, number)
         sleep(max(interval, INTERVAL))
         try:
-            page = fetch(url)
+            page, retried = fetch_once_more(fetch, url, sleep, retry_wait)
             observed = now()
             jobs, broken = extract_list(page, query, number, observed)
             fresh = 0
@@ -203,7 +219,7 @@ def run(queries, out, *, max_pages=MAX_PAGES, offset=0, fetch=fetch_page, sleep=
                     # Kept so the importer quarantines the whole identity; file order never decides.
                     known.append({**job, "warnings": sorted(set(job["warnings"] + ["duplicate:conflict"]))})
             result = {"query": query, "page": number, "httpStatus": 200, "observedAt": observed,
-                      "items": len(jobs), "new": fresh, "brokenItems": broken}
+                      "items": len(jobs), "new": fresh, "brokenItems": broken, **({"retried": True} if retried else {})}
             # Past the last page the site repeats or empties the list: stop this query only.
             if not jobs or fresh == 0:
                 exhausted.add(query)

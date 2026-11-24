@@ -43,6 +43,23 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(result['attempted'], 1)
             self.assertEqual(result['http200'], 0)
 
+class RetryTests(unittest.TestCase):
+    def test_network_error_gets_one_retry_but_blocking_status_does_not(self):
+        with tempfile.TemporaryDirectory() as directory:
+            responses = iter([TimeoutError(), Selector(HTML), HttpStatusError(429)])
+            def fetch(url):
+                result = next(responses)
+                if isinstance(result, Exception):
+                    raise result
+                return result
+            sleeps = []
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = run([URL, URL], Path(directory) / 'run', fetch=fetch, sleep=sleeps.append)
+            self.assertEqual(result['http200'], 1)  # timeout → retried → 200
+            self.assertEqual(sleeps, [2, 15, 2])
+            self.assertEqual(result['stopped'], 'access_or_service_error')  # 429 is not retried
+
+
 class DiscoverTests(unittest.TestCase):
     def test_round_robin_skips_seen_ids_and_stops_on_block(self):
         link = lambda n: f'https://www.jobkorea.co.kr/Recruit/GI_Read/{n}'
