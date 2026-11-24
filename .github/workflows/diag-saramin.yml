@@ -16,3 +16,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: bash tools/diag/reachability.sh
+        if: matrix.runner == 'none'
+  client:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: bash tools/diag/saramin-client.sh
