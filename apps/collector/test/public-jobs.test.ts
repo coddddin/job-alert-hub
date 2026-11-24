@@ -85,3 +85,26 @@ describe('public job boundary', () => {
     expect(combined.version).toBe(1);
   });
 });
+
+describe('classifyJobKorea (keyword rule + site job names)', () => {
+  const s = (jobNames: string[], skills: string[] = []) => ({ jobNames, skills, duties: null });
+  it('maps non-IT postings by site job names, keeps at most three families, and drops the apply-method label', async () => {
+    const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
+    expect(classifyJobKorea('그래픽 디자이너 정규직 채용', s(['홈페이지 지원', '그래픽 디자이너', '2D디자인']))).toMatchObject({ families: ['design'], classification: { method: 'source-tag' } });
+    const many = classifyJobKorea('아름다운가게 상근활동가 모집', s(['마케팅', '수배송', '생산', '교육', '서빙', '영업관리', '방송']));
+    expect(many.families.length).toBeLessThanOrEqual(3);
+  });
+  it('leaves a bundled posting unclassified when most site job names are not IT, even if the rule says IT', async () => {
+    const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
+    const bundled = classifyJobKorea('신입/경력 수시채용', s(['경영기획', '사업기획', '재무기획', '재고관리', '정보보안', '클라우드개발자'], ['AWS']));
+    expect(bundled).toMatchObject({ kind: 'other', families: [], classification: { method: 'none' } });
+  });
+  it('accepts IT from site job names when the rule lacked a second field, but not for bundled titles', async () => {
+    const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
+    // 제목에 개발 단어가 없어 규칙은 한 필드(사이트 키워드)만 보고 정하지 못한다 → 사이트 키워드가 두 번째 근거.
+    const byNames = classifyJobKorea('[제로살롱] 신규 서비스 담당', s(['앱 개발자', '모바일App', '안드로이드']));
+    expect(byNames).toMatchObject({ kind: 'development', families: ['it'], classification: { method: 'source-tag' } });
+    expect(byNames.classification.evidence.every(e => !e.startsWith('tag:'))).toBe(true);
+    expect(classifyJobKorea('2026 공채 신입사원 채용', s(['앱 개발자', '안드로이드']))).toMatchObject({ families: [] });
+  });
+});

@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from scrapling import Selector
-from batch_live import run
+from batch_live import discover, run
 from extract import HttpStatusError
 
 HTML = (Path(__file__).parent / 'fixtures/detail.html').read_text(encoding='utf-8')
@@ -42,3 +42,17 @@ class BatchTests(unittest.TestCase):
                 result = run([URL] * 3, Path(directory) / 'run', fetch=fetch, sleep=lambda _: None)
             self.assertEqual(result['attempted'], 1)
             self.assertEqual(result['http200'], 0)
+
+class DiscoverTests(unittest.TestCase):
+    def test_round_robin_skips_seen_ids_and_stops_on_block(self):
+        link = lambda n: f'https://www.jobkorea.co.kr/Recruit/GI_Read/{n}'
+        pages = {'%EB%B0%B1%EC%97%94%EB%93%9C': [link(1), link(2), link(3)], 'AI': [link(2), link(4)]}
+        def fetch(url):
+            query = url.split('stext=')[1].split('&')[0]
+            if query == 'blocked':
+                raise HttpStatusError(429)
+            return pages[query]
+        selected, searched, stopped = discover(['백엔드', 'AI', 'blocked', 'never'], {'1'}, 3, fetch=fetch, sleep=lambda _: None)
+        self.assertEqual(selected, [link(2), link(4), link(3)])  # 1 was seen; each query contributes in turn
+        self.assertEqual(stopped, 'access_or_service_error')
+        self.assertEqual([s['query'] for s in searched], ['백엔드', 'AI', 'blocked'])  # stops before 'never'
