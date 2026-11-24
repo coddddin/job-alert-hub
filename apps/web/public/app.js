@@ -1,5 +1,5 @@
 import { isStale, loadJobs } from './lib/load-jobs.js';
-import { CAREERS, defaults, familiesOf, matchJob, matchesCatalogFilters, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
+import { candidatesOf, CAREERS, defaults, familiesOf, matchJob, matchesCatalogFilters, notificationCandidates, REGIONS, ROLES } from './lib/matching.js';
 import { FAMILIES, familyLabel } from './lib/taxonomy.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
@@ -262,7 +262,7 @@ function preview() {
   const channels = ['email', 'kakao'].filter(key => form.elements.namedItem(key).checked);
   $('#preview-caption').textContent = channels.length ? `입력한 조건에 맞는 샘플 공고 ${matches.length}건` : `선택한 채널이 없어요. 조건에 맞는 공고는 ${matches.length}건이에요.`;
   $('#alert-preview').innerHTML = matches.length
-    ? matches.map(job => `<li>${escape(job.title)}<small>${escape(job.company)} · ${ddayLabel(job)} · ${escape(describeLocation(job.parsed.location))}</small></li>`).join('')
+    ? matches.map(job => `<li>${matchJob(job, readForm(form)).candidate ? '<span class="tag review">확인 필요</span> ' : ''}${escape(job.title)}<small>${escape(job.company)} · ${ddayLabel(job)} · ${escape(describeLocation(job.parsed.location))}</small></li>`).join('')
     : '<li class="muted">조건에 맞는 샘플 공고가 없어요.</li>';
 }
 /** 지원 버튼은 공고 상세(공고문·접수 안내)로, 기관 채용 페이지는 보조 링크로 둔다. */
@@ -307,14 +307,16 @@ function facts(job) {
 }
 function jobFamilies(job) {
   const families = familiesOf(job);
-  return families.length ? families.map(familyLabel).join(' · ') + (job.role && families.includes('it') ? ` (${job.role})` : '') : '분류 대기';
+  if (families.length) return families.map(familyLabel).join(' · ') + (job.role && families.includes('it') ? ` (${job.role})` : '');
+  const candidates = candidatesOf(job);
+  return candidates.length ? `${candidates.map(familyLabel).join(' · ')} 후보 (확인 필요)` : '분류 대기';
 }
 /** 직무를 어떻게 정했는지 보여 준다. 자동 분류는 근거를 함께 적어 사용자가 판단할 수 있게 한다. */
 function classificationNote(job) {
   const c = job.classification;
   if (!c) return '';
   const evidence = c.evidence.slice(0, 4).join(', ');
-  return ({ 'source-code': `출처 분류 ${evidence}`, 'source-tag': `출처 태그 ${evidence}`, rule: `자동 분류 · 근거: ${evidence}`, model: `자동 추정 · 근거: ${evidence}${typeof c.confidence === 'number' ? ` · 신뢰도 ${Math.round(c.confidence * 100)}%` : ''}`, none: '출처에 직무 정보가 없어 원문에서 확인해 주세요' })[c.method] ?? '';
+  return ({ 'source-code': `출처 분류 ${evidence}`, 'source-tag': `출처 태그 ${evidence}`, rule: `자동 분류 · 근거: ${evidence}`, model: `자동 추정 · 근거: ${evidence}${typeof c.confidence === 'number' ? ` · 신뢰도 ${Math.round(c.confidence * 100)}%` : ''}`, none: c.candidates?.length ? `${c.candidates.map(familyLabel).join('·')} 후보 · 근거: ${evidence} · 원문에서 직무를 확인해 주세요` : '출처에 직무 정보가 없어 원문에서 확인해 주세요' })[c.method] ?? '';
 }
 const PREVIEW_LINES = 6;
 /** "일반요건", "필수요건", "채용분야 응시자격"처럼 짧고 요건·자격으로 끝나는 줄은 소제목으로 본다. */

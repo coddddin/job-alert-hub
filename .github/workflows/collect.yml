@@ -49,12 +49,15 @@ jobs:
           mkdir -p .scrapling-local
           curl -fsS --max-time 30 "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/live/snapshot.json" -o .scrapling-local/previous.json || rm -f .scrapling-local/previous.json
           node tools/public-jobs/seen-ids.mjs .scrapling-local/previous.json jobkorea 24 > .scrapling-local/jobkorea-seen.txt
-          defaults=$(cd tools/public-jobs && python -c "import saramin_list; print(','.join(saramin_list.QUERIES))")
+          # 사람인 기본 검색어를 소스에서 읽는다(import하면 아직 설치되지 않은 scrapling이 필요해 실패했다: 11/17~24 계획 미적용).
+          defaults=$(python -c "import ast; t=ast.parse(open('tools/public-jobs/saramin_list.py', encoding='utf-8').read()); print(','.join(next(ast.literal_eval(n.value) for n in t.body if isinstance(n, ast.Assign) and getattr(n.targets[0], 'id', '') == 'QUERIES')))")
           node tools/public-jobs/collection-plan.mjs --plan tools/public-jobs/collection-plan.json --slots 10 --defaults "$defaults" | paste -sd, > .scrapling-local/saramin-queries.txt
           echo "saramin queries: $(cat .scrapling-local/saramin-queries.txt)"
           # 잡코리아: 검색어 8개(관심 직무군 70%), 검색어마다 1페이지 → 새 공고 상세 최대 40건.
           node tools/public-jobs/collection-plan.mjs --plan tools/public-jobs/collection-plan.json --slots 8 --defaults "$defaults" | paste -sd, > .scrapling-local/jobkorea-queries.txt
           echo "jobkorea queries: $(cat .scrapling-local/jobkorea-queries.txt)"
+          # 계획이 비면 수집기가 예전 기본 동작으로 돌아간다. 조용히 넘어가지 않게 경고로 남긴다.
+          for f in saramin jobkorea; do [ -s .scrapling-local/$f-queries.txt ] || echo "::warning::$f 검색어 계획이 비어 기본 검색어로 수집한다"; done
       - name: Collect JobKorea (optional)
         continue-on-error: true
         timeout-minutes: 5

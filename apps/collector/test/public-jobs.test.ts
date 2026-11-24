@@ -98,6 +98,10 @@ describe('classifyJobKorea (keyword rule + site job names)', () => {
     const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
     const bundled = classifyJobKorea('신입/경력 수시채용', s(['경영기획', '사업기획', '재무기획', '재고관리', '정보보안', '클라우드개발자'], ['AWS']));
     expect(bundled).toMatchObject({ kind: 'other', families: [], classification: { method: 'none' } });
+    // 확정은 못 해도 개발 신호가 있으면 IT 후보로 남겨 맞춤·알림에서 놓치지 않는다.
+    expect(bundled.classification.candidates).toEqual(['it']);
+    expect(classifyJobKorea('[웍스피어] 보안 엔지니어 (3년이상)', s(['보안운영엔지니어'])).classification.candidates).toEqual(['it']);
+    expect(classifyJobKorea('초중등 수학선생님 모십니다', s(['수학강사'])).classification.candidates).toBeUndefined();
   });
   it('accepts IT from site job names when the rule lacked a second field, but not for bundled titles', async () => {
     const { classifyJobKorea } = await import('../src/providers/public-jobs.js');

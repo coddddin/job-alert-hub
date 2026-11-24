@@ -1,6 +1,6 @@
 import type { CollectedJob } from '../job.js';
 import type { Provider } from './provider.js';
-import { classifyKeywords, classifySaraminTags, SARAMIN_TAGS_VERSION, type Classified, type JobSignals } from '../classify/index.js';
+import { classifyKeywords, classifySaraminTags, developmentEvidence, SARAMIN_TAGS_VERSION, type Classified, type JobSignals } from '../classify/index.js';
 
 export const publicFields = ['company', 'title', 'location', 'experience', 'deadline'] as const;
 export type PublicField = typeof publicFields[number];
@@ -82,7 +82,7 @@ const NOT_JOB = /^홈페이지\s*지원$/u;
 /** 여러 직무를 한 공고에 묶었다는 제목. 사이트 키워드만으로 개발 공고로 정하지 않는다. */
 const BUNDLED = /각\s*부문|부문별|분야별|공개\s*채용|공채|정기\s*채용|수시\s*채용|대규모|인재영입|[/,·].*(?:기획|영업|PM|사무|컨설)/u;
 
-export function classifyJobKorea(title: string, raw: JobSignals | undefined): Classified {
+function decide(title: string, raw: JobSignals | undefined): Classified {
   const signals = raw && { ...raw, jobNames: raw.jobNames.filter(name => !NOT_JOB.test(name.trim())) };
   const rule = classifyKeywords(title, signals);
   if (!signals || rule.classification.nonHiring) return rule;
@@ -109,6 +109,19 @@ export function classifyJobKorea(title: string, raw: JobSignals | undefined): Cl
       evidence: byTags.classification.evidence.map(e => e.replace(/^tag:/u, 'job:')),
     },
   };
+}
+
+/**
+ * 판정 결과에 더해, 직무를 확정하지 못한 채용 공고라도 제목·사이트 직무 키워드에 개발 신호가 있으면
+ * IT 후보로 표시한다. 후보는 확정이 아니므로 직무군(families)은 비워 두고 근거만 붙인다.
+ */
+export function classifyJobKorea(title: string, raw: JobSignals | undefined): Classified {
+  const result = decide(title, raw);
+  if (result.families.length || result.classification.nonHiring) return result;
+  const signals = raw && { ...raw, jobNames: raw.jobNames.filter(name => !NOT_JOB.test(name.trim())) };
+  const dev = developmentEvidence(title, signals);
+  if (!dev.length) return result;
+  return { ...result, classification: { ...result.classification, candidates: ['it'], evidence: [...new Set([...result.classification.evidence, ...dev])].slice(0, 8) } };
 }
 
 /** 목록 표시와 검색에 쓰는 꼬리표: 사이트 직무 키워드와 스킬, 중복 없이 최대 10개. */
