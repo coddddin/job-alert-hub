@@ -154,7 +154,8 @@ try {
       const job = byId.get(id);
       assert.equal(job.kind, 'development', id);
       assert.ok(job.families?.includes('it'), id);
-      assert.equal(job.classification?.method, 'rule', id);
+      // 키워드 규칙 또는 사이트 직무 키워드(두 번째 근거)로 정한 IT만. 미분류·모델 추정은 맞춤에 오지 않는다.
+      assert.ok(['rule', 'source-tag'].includes(job.classification?.method), id);
       assert.ok(!job.classification.nonHiring, id);
     }
   };

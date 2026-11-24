@@ -5,7 +5,10 @@ name: Collect & Deploy
 # 잡코리아·사람인은 선택 단계다. 하나가 실패하거나 비어 있으면 그 출처만 빠지고 나머지는 그대로 배포한다.
 on:
   schedule:
-    - cron: '7 * * * *' # 매시 7분. 민간 출처는 회당 상한과 이전 배포분 이월(누적)로 요청을 줄인다
+    # GitHub 예약 실행은 부하가 크면 건너뛰어진다(11/17~24 매시 예약 중 약 20회만 실행).
+    # 같은 시간대에 두 번 예약해 놓치는 시간을 줄인다. 겹치면 concurrency로 차례로 실행된다.
+    - cron: '7 * * * *'
+    - cron: '37 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -49,12 +52,17 @@ jobs:
           defaults=$(cd tools/public-jobs && python -c "import saramin_list; print(','.join(saramin_list.QUERIES))")
           node tools/public-jobs/collection-plan.mjs --plan tools/public-jobs/collection-plan.json --slots 10 --defaults "$defaults" | paste -sd, > .scrapling-local/saramin-queries.txt
           echo "saramin queries: $(cat .scrapling-local/saramin-queries.txt)"
+          # 잡코리아: 검색어 8개(관심 직무군 70%), 검색어마다 1페이지 → 새 공고 상세 최대 40건.
+          node tools/public-jobs/collection-plan.mjs --plan tools/public-jobs/collection-plan.json --slots 8 --defaults "$defaults" | paste -sd, > .scrapling-local/jobkorea-queries.txt
+          echo "jobkorea queries: $(cat .scrapling-local/jobkorea-queries.txt)"
       - name: Collect JobKorea (optional)
         continue-on-error: true
         timeout-minutes: 5
         run: |
           python -m pip install -r tools/public-jobs/requirements.txt
-          python tools/public-jobs/batch_live.py --count 40 --out .scrapling-local/jobkorea
+          queries=$(cat .scrapling-local/jobkorea-queries.txt 2>/dev/null || true)
+          python tools/public-jobs/batch_live.py --count 40 --out .scrapling-local/jobkorea \
+            ${queries:+--queries "$queries"} --seen .scrapling-local/jobkorea-seen.txt
       - name: Collect Saramin list (optional)
         continue-on-error: true
         timeout-minutes: 3
