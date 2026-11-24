@@ -1,0 +1,18 @@
+name: Saramin reachability (diagnostic)
+# 1회성 진단: diag/saramin-reachability 브랜치에 push할 때만 실행. 운영 수집과 무관.
+on:
+  push:
+    branches: [diag/saramin-reachability]
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash tools/diag/reachability.sh
