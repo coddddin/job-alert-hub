@@ -3,6 +3,7 @@ import { candidatesOf, CAREERS, defaults, familiesOf, matchJob, matchesCatalogFi
 import { FAMILIES, familyLabel } from './lib/taxonomy.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
+import { nextSort, sortJobs } from './lib/sort.js';
 import { siteLinks } from './lib/site-links.js';
 
 const data = await loadJobs({ search: location.search });
@@ -169,8 +170,9 @@ function render() {
   });
   $('#saved-count').textContent = state.bookmarks.filter(id => jobs.some(job => job.id === id)).length;
 
-  const visible = (tab === 'all' ? browse : scoped.filter(x => x.result.status === tab))
-    .sort((a, b) => (daysLeft(a.job) ?? Infinity) - (daysLeft(b.job) ?? Infinity));
+  const visible = sortJobs(tab === 'all' ? browse : scoped.filter(x => x.result.status === tab), state.sort,
+    ({ job }) => ({ days: daysLeft(job), title: job.title, company: job.company, source: sourceTag(job) }));
+  renderSortBar();
   $('#job-list').innerHTML = visible.length
     ? visible.map(x => row(x.job, x.result)).join('')
     : `<tr class="empty"><td colspan="6">${view === 'saved' ? '이 탭에 해당하는 스크랩 공고가 없어요.' : '이 탭에 해당하는 공고가 없어요. 필터를 바꾸거나 위 사이트에서 같은 조건으로 찾아보세요.'}</td></tr>`;
@@ -180,6 +182,26 @@ function render() {
     ? `출처: ${data.sources.map(source => `${sourceLabel(source)} ${kst(source.collectedAt)} 수집`).join(', ')}`
     : `샘플 기준일 ${today} · 실제 공고 아님`;
 }
+
+const SORT_LABELS = { deadline: '마감일', title: '공고명', company: '회사', source: '출처' };
+function renderSortBar() {
+  const { key, dir } = state.sort;
+  for (const button of document.querySelectorAll('[data-sort]')) {
+    const active = button.dataset.sort === key;
+    button.setAttribute('aria-pressed', String(active));
+    button.textContent = SORT_LABELS[button.dataset.sort] + (active ? (dir === 'asc' ? ' ▲' : ' ▼') : '');
+    button.setAttribute('aria-label', `${SORT_LABELS[button.dataset.sort]}순 정렬${active ? `, 현재 ${dir === 'asc' ? '오름차순' : '내림차순'}` : ''}`);
+  }
+  const order = dir === 'asc' ? 'ascending' : 'descending';
+  $('#th-deadline').setAttribute('aria-sort', key === 'deadline' ? order : 'none');
+  $('#th-title').setAttribute('aria-sort', key === 'title' ? order : 'none');
+}
+$('#sort-bar').addEventListener('click', event => {
+  const button = event.target.closest('[data-sort]');
+  if (!button) return;
+  state.sort = nextSort(state.sort, button.dataset.sort);
+  persist(); render();
+});
 
 /** 다른 사이트의 공고는 가져오지 않는다. 지금 필터를 그 사이트 검색 주소로 옮겨 이동만 시킨다. */
 function renderSiteLinks() {

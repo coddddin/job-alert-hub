@@ -18,6 +18,7 @@ export const routes = new Map([
   ['/lib/matching.js', ['lib/matching.js', js]],
   ['/lib/normalize-job.js', ['lib/normalize-job.js', js]],
   ['/lib/state.js', ['lib/state.js', js]],
+  ['/lib/sort.js', ['lib/sort.js', js]],
   ['/data/jobs.js', ['data/jobs.js', js]],
   ['/lib/load-jobs.js', ['lib/load-jobs.js', js]],
   ['/lib/calendar.js', ['lib/calendar.js', js]],

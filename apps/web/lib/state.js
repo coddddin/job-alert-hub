@@ -1,9 +1,10 @@
 import { CAREERS, defaults, FAMILY_FILTERS, REGIONS, ROLES } from './matching.js';
 import { FAMILY_IDS } from './taxonomy.js';
+import { defaultSort, sanitizeSort } from './sort.js';
 export const storageKey = 'job-alert-hub:prototype:v1';
 export function initialState() {
   // profile: 첫 방문 질문의 답. null이면 아직 묻지 않았다. skipped면 건너뛰었다.
-  return { version: 1, profile: null, filters: { ...defaults }, notifications: { ...defaults, includeUnspecified: false, frequency: 'hourly', email: true, kakao: true }, bookmarks: [], applications: {} };
+  return { version: 1, profile: null, filters: { ...defaults }, notifications: { ...defaults, includeUnspecified: false, frequency: 'hourly', email: true, kakao: true }, bookmarks: [], applications: {}, sort: { ...defaultSort } };
 }
 /** 샘플(`sample-1`)과 수집 공고(`alio:306649`) ID. */
 const JOB_ID = /^(?:sample-\d+|[a-z]+:\d+)$/;
@@ -21,6 +22,7 @@ export function sanitizeState(value) {
     if (Array.isArray(source.families)) clean[key].families = [...new Set(source.families.filter(id => FAMILY_IDS.includes(id)))];
     if (CAREERS.includes(source.career)) clean[key].career = source.career;
   }
+  clean.sort = sanitizeSort(value.sort);
   const p = value.profile;
   if (p && typeof p === 'object') {
     const families = Array.isArray(p.families) ? [...new Set(p.families.filter(id => FAMILY_IDS.includes(id)))] : [];
