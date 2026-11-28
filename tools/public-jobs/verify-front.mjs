@@ -107,6 +107,31 @@ try {
   }
   log.sourceFilter = perSource;
 
+  // 2b. Sort: clicking a sort item orders the list by it, clicking again reverses it, and the choice survives a reload.
+  await page.selectOption('#filter-source', 'all');
+  const titles = () => page.locator('#job-list .job-title').allTextContents();
+  // 마감일이 없는 공고(상시·확인 필요)는 방향과 상관없이 맨 뒤라서, 마감일 있는 쪽과 없는 쪽을 따로 정렬해 이어 붙인다.
+  const withDeadline = await page.locator('#job-list tr:not(.empty)').evaluateAll(trs => trs.map(tr => ({
+    title: tr.querySelector('.job-title').textContent, dated: !['상시', '?'].includes(tr.querySelector('.dday').textContent.trim()) })));
+  const ordered = dir => {
+    const part = dated => withDeadline.filter(x => x.dated === dated).map(x => x.title).sort((a, b) => dir * a.localeCompare(b, 'ko'));
+    return [...part(true), ...part(false)];
+  };
+  const byTitle = ordered(1);
+  assert.equal(await page.locator('[data-sort="deadline"]').getAttribute('aria-pressed'), 'true');
+  await page.click('[data-sort="title"]');
+  assert.deepEqual(await titles(), byTitle);
+  assert.equal(await page.locator('#th-title').getAttribute('aria-sort'), 'ascending');
+  assert.ok((await page.textContent('[data-sort="title"]')).includes('▲'));
+  await page.click('[data-sort="title"]');
+  assert.deepEqual(await titles(), ordered(-1));
+  assert.equal(await page.locator('#th-title').getAttribute('aria-sort'), 'descending');
+  await page.reload();
+  await page.waitForSelector('#job-list tr');
+  assert.deepEqual(await titles(), ordered(-1));
+  await page.click('[data-sort="deadline"]');
+  log.sort = { rows: byTitle.length, title: 'asc → desc, persisted after reload' };
+
   // 3-4. Per private source: search a real job by company, open its detail, check the original link.
   log.search = {};
   log.detail = {};

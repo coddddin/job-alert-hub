@@ -63,12 +63,19 @@
           <button type="button" class="text-button" id="open-bookmarklet" hidden>잡코리아 화면에서 바로 판정하기</button>
         </nav>
 
+        <div class="sort-bar" id="sort-bar" role="group" aria-label="정렬 기준">
+          <span class="sort-label">정렬</span>
+          <button type="button" data-sort="deadline">마감일</button>
+          <button type="button" data-sort="title">공고명</button>
+          <button type="button" data-sort="company">회사</button>
+          <button type="button" data-sort="source">출처</button>
+        </div>
         <table class="jobs">
           <caption class="sr-only">공고 목록. 각 공고의 원문 표기와 해석 결과를 함께 보여줍니다.</caption>
           <thead>
             <tr>
-              <th scope="col" class="c-dday">마감</th>
-              <th scope="col">공고</th>
+              <th scope="col" class="c-dday" id="th-deadline">마감</th>
+              <th scope="col" id="th-title">공고</th>
               <th scope="col" class="c-raw">경력</th>
               <th scope="col" class="c-raw">근무지</th>
               <th scope="col" class="c-raw c-ddl">마감일</th>
