@@ -46,6 +46,12 @@ describe('saramin boundary', () => {
     });
     expect(noFetch).not.toHaveBeenCalled();
   });
+  it('estimates with the model only what the tag dictionary leaves unclassified', async () => {
+    const tutor = { ...item, externalId: '2', url: item.url.replace(/\d+$/u, '2'), fields: { ...item.fields, title: extracted('영어회화 강사 모집') }, tags: ['영어'] };
+    const result = await saramin(batch([item, tutor])).collect(noFetch);
+    expect(result.jobs[0]?.classification?.method).not.toBe('model');
+    expect(result.jobs[1]).toMatchObject({ kind: 'other', role: '', families: ['education'], classification: { method: 'model', version: 'family-model/1' } });
+  });
   it('skips missing mandatory fields and quarantines conflicting duplicates', async () => {
     const noTitle = { ...item, fields: { ...item.fields, title: missing } };
     expect(await saramin(batch([noTitle])).collect(noFetch)).toEqual({ jobs: [], skipped: 1, total: 1 });

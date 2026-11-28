@@ -45,16 +45,17 @@ describe('public job boundary', () => {
   ])('rejects signals on /1 or malformed signals: %j', async value => {
     expect(await publicJobs(batch([value])).collect(noFetch)).toMatchObject({ jobs: [], skipped: 1 });
   });
-  it('classifies /2 rows by rule from signals; /2 without signals stays unclassified', async () => {
+  it('classifies /2 rows by rule from signals; without signals only the model estimates', async () => {
     const v2 = { ...item, extractorVersion: 'jobkorea-detail/2', signals: { skills: ['Spring'], duties: null, jobNames: ['서버 개발'] } };
     const result = await publicJobs(batch([v2, { ...item, externalId: '10000002', url: `${item.url.slice(0, -1)}2`, extractorVersion: 'jobkorea-detail/2' }])).collect(noFetch);
     expect(result.jobs[0]).toMatchObject({ kind: 'development', role: '백엔드', classification: { method: 'rule', version: 'keyword-rules/1' } });
-    expect(result.jobs[1]).toMatchObject({ kind: 'other', role: '', classification: { method: 'none' } });
+    // 사이트 키워드가 없으면 규칙은 정하지 못하고, 제목만으로 모델이 추정한다(확정 아님).
+    expect(result.jobs[1]).toMatchObject({ kind: 'other', role: '', families: ['it'], classification: { method: 'model', version: 'family-model/1' } });
   });
   it('preserves raw fields and stable identity without fetching', async () => {
     const result = await publicJobs(batch([item])).collect(noFetch);
     expect(result.jobs[0]).toMatchObject({ id: 'jobkorea:10000001', company: '예시랩', title: '백엔드 개발자',
-      raw: { location: '서울 금천구', experience: '경력 (3년이상)', deadline: '2026.12.04(금)' }, details: null, kind: 'other', role: '', classification: { method: 'none' } });
+      raw: { location: '서울 금천구', experience: '경력 (3년이상)', deadline: '2026.12.04(금)' }, details: null, kind: 'other', role: '', classification: { method: 'model' } });
     expect(noFetch).not.toHaveBeenCalled();
   });
   it('retains unknown optional fields instead of inventing conditions', async () => {
@@ -94,10 +95,11 @@ describe('classifyJobKorea (keyword rule + site job names)', () => {
     const many = classifyJobKorea('아름다운가게 상근활동가 모집', s(['마케팅', '수배송', '생산', '교육', '서빙', '영업관리', '방송']));
     expect(many.families.length).toBeLessThanOrEqual(3);
   });
-  it('leaves a bundled posting unclassified when most site job names are not IT, even if the rule says IT', async () => {
+  it('does not confirm a bundled posting when most site job names are not IT, even if the rule says IT', async () => {
     const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
     const bundled = classifyJobKorea('신입/경력 수시채용', s(['경영기획', '사업기획', '재무기획', '재고관리', '정보보안', '클라우드개발자'], ['AWS']));
-    expect(bundled).toMatchObject({ kind: 'other', families: [], classification: { method: 'none' } });
+    // 규칙·키워드는 확정하지 않고 모델 추정으로만 남는다(알림 제외).
+    expect(bundled).toMatchObject({ kind: 'other', classification: { method: 'model' } });
     // 확정은 못 해도 개발 신호가 있으면 IT 후보로 남겨 맞춤·알림에서 놓치지 않는다.
     expect(bundled.classification.candidates).toEqual(['it']);
     expect(classifyJobKorea('[웍스피어] 보안 엔지니어 (3년이상)', s(['보안운영엔지니어'])).classification.candidates).toEqual(['it']);
@@ -109,6 +111,18 @@ describe('classifyJobKorea (keyword rule + site job names)', () => {
     const byNames = classifyJobKorea('[제로살롱] 신규 서비스 담당', s(['앱 개발자', '모바일App', '안드로이드']));
     expect(byNames).toMatchObject({ kind: 'development', families: ['it'], classification: { method: 'source-tag' } });
     expect(byNames.classification.evidence.every(e => !e.startsWith('tag:'))).toBe(true);
-    expect(classifyJobKorea('2026 공채 신입사원 채용', s(['앱 개발자', '안드로이드']))).toMatchObject({ families: [] });
+    expect(classifyJobKorea('2026 공채 신입사원 채용', s(['앱 개발자', '안드로이드'])).classification.method).not.toBe('source-tag');
+  });
+  it('estimates families with the model only when rules and site names cannot decide', async () => {
+    const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
+    // 사전에 없는 '기술원·산업안전': 규칙·사전은 정하지 못하고 모델이 연구·엔지니어링으로 추정한다.
+    const guess = classifyJobKorea('직원(정규직 기술원) 모집', s(['기술원', '산업안전']));
+    expect(guess).toMatchObject({ classification: { method: 'model', version: 'family-model/1' } });
+    expect(guess.families[0]).toBe('research');
+    expect(guess.classification.confidence).toBeGreaterThan(0.5);
+    expect(guess.classification.evidence).toContain('기술원');
+    // 채용이 아닌 공고와 확정된 공고에는 모델을 쓰지 않는다.
+    expect(classifyJobKorea('[국비지원] 웹개발자 취업교육생 모집', s(['웹개발'])).classification.method).not.toBe('model');
+    expect(classifyJobKorea('그래픽 디자이너 정규직 채용', s(['그래픽 디자이너'])).classification.method).toBe('source-tag');
   });
 });
