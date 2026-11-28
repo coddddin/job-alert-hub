@@ -5,6 +5,7 @@
  * 추정은 확정이 아니다: 화면은 "자동 추정"으로 보이고, 알림에는 넣지 않는다(후보 표시가 있으면 후보로만).
  */
 import weights from './family-model.v1.json' with { type: 'json' };
+import type { Classified } from './index.js';
 import { FAMILY_IDS, type FamilyId } from './taxonomy.js';
 
 export interface FamilyModel {
@@ -104,3 +105,18 @@ function wordEvidence(parts: readonly string[], model: FamilyModel, index: Reado
 }
 
 export const FAMILY_MODEL_VERSION = (weights as unknown as FamilyModel).version;
+
+/**
+ * 규칙·출처 태그 다음 단계: 직무를 정하지 못한 채용 공고에만 모델 추정을 붙인다.
+ * 확정·비채용 공고는 그대로 둔다. IT 후보 표시(candidates)는 남겨서 후보로는 계속 알림에 들어가게 한다.
+ */
+export function withEstimate(result: Classified, title: string, tags: readonly string[]): Classified {
+  if (result.families.length || result.classification.nonHiring) return result;
+  const estimate = estimateFamilies(title, tags);
+  if (!estimate) return result;
+  const { candidates } = result.classification;
+  return {
+    kind: 'other', role: '', families: estimate.families,
+    classification: { method: 'model', version: FAMILY_MODEL_VERSION, confidence: estimate.confidence, evidence: estimate.evidence, ...(candidates ? { candidates } : {}) },
+  };
+}
