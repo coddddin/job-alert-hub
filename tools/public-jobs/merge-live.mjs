@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { collect } from '../../apps/collector/dist/collect.js';
 import { publicJobs } from '../../apps/collector/dist/providers/public-jobs.js';
 import { saramin } from '../../apps/collector/dist/providers/saramin.js';
+import { withEstimate } from '../../apps/collector/dist/classify/model.js';
 import { mergePreviewSnapshots } from '../../apps/web/lib/preview.js';
 import { normalizeJob } from '../../apps/web/lib/normalize-job.js';
 import { readPlan } from './collection-plan.mjs';
@@ -68,7 +69,7 @@ export function carryOver(snapshot, previous, { carryHours = 72, now = new Date(
     const seenAt = Date.parse(job.seenAt ?? '');
     if (!Number.isFinite(seenAt) || seenAt < limit) continue;
     try { if (normalizeJob(job, snapshot.today).closed) continue; } catch { continue; }
-    jobs.push(job);
+    jobs.push(estimateCarried(job));
     have.add(job.id);
     carried[source] = (carried[source] ?? 0) + 1;
   }
@@ -81,6 +82,17 @@ export function carryOver(snapshot, previous, { carryHours = 72, now = new Date(
     if (old) sources.push({ ...old, total: 0, skipped: 0, carried: carried[name] });
   }
   return { snapshot: { ...snapshot, sources, jobs: [...snapshot.jobs, ...jobs] }, carried };
+}
+
+/**
+ * 모델 도입 전에 수집돼 미분류로 이월되는 공고에도 같은 추정 단계를 적용한다(다시 수집될 때까지 기다리지 않게).
+ * 확정·비채용·이미 추정된 공고는 그대로 둔다. 꼬리표는 수집 때와 같은 값(사이트 직무 키워드·스킬)이다.
+ */
+function estimateCarried(job) {
+  const classification = job.classification;
+  if (!classification || classification.method !== 'none' || job.families?.length) return job;
+  const estimated = withEstimate({ kind: job.kind, role: job.role, families: [], classification }, job.title ?? '', job.tags ?? []);
+  return estimated.classification.method === 'model' ? { ...job, ...estimated } : job;
 }
 
 /** Merge every batch file in order onto the base. Returns the final snapshot (or null) and one line per batch. */
