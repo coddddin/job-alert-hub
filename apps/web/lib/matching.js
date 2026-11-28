@@ -23,14 +23,20 @@ export function candidatesOf(job) {
   return job.classification?.candidates ?? [];
 }
 
-/** 선택한 직무군에 드는지: 'yes' | 'no' | 'candidate'(후보로 해당) | 'unknown'(분류 대기). */
+/**
+ * 선택한 직무군에 드는지: 'yes' | 'no' | 'estimated'(모델 추정으로 해당) | 'candidate'(후보로 해당) | 'unknown'(분류 대기).
+ * 후보 표시는 모델 추정보다 앞선다: 모델이 다른 직무군으로 추정해도 내 직무군 후보면 놓치지 않는다.
+ */
 export function familyFit(job, filters) {
   const choice = filters.family ?? defaults.family;
   const wanted = choice === 'mine' ? (filters.families ?? []) : choice === 'all' ? [] : [choice];
   if (!wanted.length) return 'yes';
   const families = familiesOf(job);
-  if (!families.length) return candidatesOf(job).some(family => wanted.includes(family)) ? 'candidate' : 'unknown';
-  return families.some(family => wanted.includes(family)) ? 'yes' : 'no';
+  const candidate = candidatesOf(job).some(family => wanted.includes(family));
+  if (!families.length) return candidate ? 'candidate' : 'unknown';
+  if (!families.some(family => wanted.includes(family))) return candidate ? 'candidate' : 'no';
+  if (job.classification?.method !== 'model') return 'yes';
+  return candidate ? 'candidate' : 'estimated';
 }
 
 function keywordFit(job, keyword) {
@@ -66,6 +72,7 @@ export function matchJob(job, filters = defaults) {
   // 직무를 모르는 공고는 버리지 않고 확인 필요로 둔다. 알림에는 넣지 않는다.
   if (family === 'candidate') return { status: 'review', reason: `${candidatesOf(job).map(familyLabel).join('·')} 후보 · 직무 확인 필요`, candidate: true };
   if (family === 'unknown') return { status: 'review', reason: '직무 분류 대기 · 원문에서 직무 확인' };
+  if (family === 'estimated') return { status: 'review', reason: `${familiesOf(job).map(familyLabel).join('·')} 추정 · 직무 확인 필요`, estimated: true };
   if (job.experience === 'unknown' || job.ambiguous || region === 'unknown') {
     return { status: 'review', reason: '근무지 또는 지원 조건 확인 필요' };
   }
@@ -75,11 +82,11 @@ export function matchJob(job, filters = defaults) {
 
 /**
  * 알림 대상: 직무를 확정한 일치 공고 + 내 직무군 후보인 공고(놓치지 않게, 화면에서 "확인 필요"로 표시).
- * 모델 추정은 알림에 넣지 않는다(설계 8.6).
+ * 모델 추정만으로는 알림에 넣지 않는다(설계 8.6). 모델이 추정한 공고도 후보 표시가 있으면 후보로 들어간다.
  */
 export function notificationCandidates(jobs, filters, bookmarksOnly = null) {
   return jobs.filter(job => {
-    if (job.classification?.method === 'model' || (bookmarksOnly && !bookmarksOnly.includes(job.id))) return false;
+    if (bookmarksOnly && !bookmarksOnly.includes(job.id)) return false;
     const result = matchJob(job, filters);
     return result.status === 'match' || result.candidate === true;
   });

@@ -6,6 +6,7 @@ import type { CollectedJob } from '../job.js';
 import type { Provider } from './provider.js';
 import type { ExtractedField } from './public-jobs.js';
 import { classifySaraminTags } from '../classify/index.js';
+import { withEstimate } from '../classify/model.js';
 import { koreanDate } from '../collect.js';
 
 export const saraminFields = ['company', 'title', 'location', 'experience', 'deadline', 'education', 'employment'] as const;
@@ -83,7 +84,8 @@ function toJob(item: SaraminObservation): CollectedJob | null {
       location: location.value ?? '', experience: experience.value ?? '',
       deadline: deadline.value ? saraminDeadline(deadline.value, item.observedAt) : '',
     },
-    ...classifySaraminTags(item.tags, title.value),
+    // 태그 사전이 못 정한 공고(제목 거부어·충돌)는 모델이 추정한다(평가: family-model-eval-2026-11-28.json).
+    ...withEstimate(classifySaraminTags(item.tags, title.value), title.value, item.tags),
     employment: employment.value ?? '', tags: item.tags, description: '',
     // The list shows education only; requirements and headcount stay unknown rather than invented.
     details: education.value

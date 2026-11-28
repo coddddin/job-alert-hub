@@ -1,5 +1,6 @@
 import type { CollectedJob } from '../job.js';
 import type { Provider } from './provider.js';
+import { withEstimate } from '../classify/model.js';
 import { classifyKeywords, classifySaraminTags, developmentEvidence, SARAMIN_TAGS_VERSION, type Classified, type JobSignals } from '../classify/index.js';
 
 export const publicFields = ['company', 'title', 'location', 'experience', 'deadline'] as const;
@@ -120,8 +121,9 @@ export function classifyJobKorea(title: string, raw: JobSignals | undefined): Cl
   if (result.families.length || result.classification.nonHiring) return result;
   const signals = raw && { ...raw, jobNames: raw.jobNames.filter(name => !NOT_JOB.test(name.trim())) };
   const dev = developmentEvidence(title, signals);
-  if (!dev.length) return result;
-  return { ...result, classification: { ...result.classification, candidates: ['it'], evidence: [...new Set([...result.classification.evidence, ...dev])].slice(0, 8) } };
+  const flagged = dev.length ? { ...result, classification: { ...result.classification, candidates: ['it'], evidence: [...new Set([...result.classification.evidence, ...dev])].slice(0, 8) } } : result;
+  // 규칙·사이트 키워드가 못 정한 공고만 모델이 추정한다(평가: tools/public-jobs/family-model-eval-2026-11-28.json).
+  return withEstimate(flagged, title, signalTags(raw));
 }
 
 /** 목록 표시와 검색에 쓰는 꼬리표: 사이트 직무 키워드와 스킬, 중복 없이 최대 10개. */
