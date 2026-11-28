@@ -58,7 +58,17 @@ jobs:
           echo "jobkorea queries: $(cat .scrapling-local/jobkorea-queries.txt)"
           # 계획이 비면 수집기가 예전 기본 동작으로 돌아간다. 조용히 넘어가지 않게 경고로 남긴다.
           for f in saramin jobkorea; do [ -s .scrapling-local/$f-queries.txt ] || echo "::warning::$f 검색어 계획이 비어 기본 검색어로 수집한다"; done
+      - name: Backoff check (optional)
+        id: backoff
+        continue-on-error: true
+        # 직전 회차들이 차단 신호(401·403·429)나 오류로 멈췄으면 쉬는 시간이 끝날 때까지 그 출처를 요청하지 않는다(설계 6.3).
+        # 기억은 이전 배포 스냅샷의 collectionHealth. 이 단계가 실패하거나 비면 예전처럼 수집한다.
+        run: |
+          for source in jobkorea saramin; do
+            echo "$source=$(node tools/public-jobs/backoff.mjs check --previous .scrapling-local/previous.json --source $source)" >> "$GITHUB_OUTPUT"
+          done
       - name: Collect JobKorea (optional)
+        if: steps.backoff.outputs.jobkorea != 'skip'
         continue-on-error: true
         timeout-minutes: 5
         run: |
@@ -67,6 +77,7 @@ jobs:
           python tools/public-jobs/batch_live.py --count 40 --out .scrapling-local/jobkorea \
             ${queries:+--queries "$queries"} --seen .scrapling-local/jobkorea-seen.txt
       - name: Collect Saramin list (optional)
+        if: steps.backoff.outputs.saramin != 'skip'
         continue-on-error: true
         timeout-minutes: 3
         # 검색 목록만 읽는다(상세 요청 없음). 2초 간격, 회당 10페이지 상한, 차단 신호면 부분 결과로 중지.
@@ -80,6 +91,13 @@ jobs:
           node tools/public-jobs/merge-live.mjs --base apps/web/data/live/snapshot.json
           --batch .scrapling-local/jobkorea/batch.json --batch .scrapling-local/saramin/batch.json
           --previous .scrapling-local/previous.json --plan tools/public-jobs/collection-plan.json
+      - name: Record collection health (optional)
+        continue-on-error: true
+        # 이번 회차 결과를 스냅샷 collectionHealth에 남겨 다음 회차의 백오프 판단에 쓴다. 건너뛴 출처는 이전 상태를 유지한다.
+        run: >-
+          node tools/public-jobs/backoff.mjs record --previous .scrapling-local/previous.json
+          --snapshot apps/web/data/live/snapshot.json
+          --run jobkorea=.scrapling-local/jobkorea/run.json --run saramin=.scrapling-local/saramin/run.json
       - name: Build static site
         run: pnpm --filter @job-alert-hub/web build:site
       - uses: actions/upload-pages-artifact@v3

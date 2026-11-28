@@ -36,4 +36,4 @@ jobs:
         run: |
           python tools/public-jobs/saramin_list.py --html tools/public-jobs/fixtures/saramin-list.html --query 백엔드 --out .scrapling-local/saramin-fixture
           node -e "import('./apps/collector/dist/providers/saramin.js').then(async m => { const r = await m.saramin(JSON.parse(require('fs').readFileSync('.scrapling-local/saramin-fixture/batch.json', 'utf8'))).collect(); if (r.jobs.length !== 3 || r.skipped || r.jobs[0].role !== '백엔드') { console.error(r); process.exit(1); } })"
-      - run: node --test tools/public-jobs/merge-live.test.mjs
+      - run: node --test tools/public-jobs/merge-live.test.mjs tools/public-jobs/backoff.test.mjs
