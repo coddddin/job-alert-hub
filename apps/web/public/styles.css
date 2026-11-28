@@ -77,11 +77,15 @@ h1 { font-family: var(--serif); font-weight: 900; font-size: 40px; letter-spacin
 .chip-search input { width: 180px; }
 .text-button { font-size: 12px; color: var(--mute); text-decoration: underline; text-underline-offset: 3px; }
 
-/* Sort bar */
-.sort-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+/* Sort: 넓은 화면은 표 머리글을 누르고, 좁은 화면(머리글이 숨겨짐)은 버튼 줄을 쓴다. */
+.th-sort { font: inherit; letter-spacing: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.th-sort:hover, .th-sort[aria-pressed="true"] { color: var(--ink); }
+.th-sort:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sort-bar { display: none; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .sort-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--mute); margin-right: 4px; }
 .sort-bar button { font-size: 13px; padding: 6px 12px; min-height: 36px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: var(--card); }
 .sort-bar button[aria-pressed="true"] { border-color: var(--ink); font-weight: 700; }
+@media (max-width: 960px) { .sort-bar { display: flex; } }
 
 /* Table */
 .jobs { width: 100%; border-collapse: collapse; margin-top: 4px; }

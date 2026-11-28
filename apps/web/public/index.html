@@ -63,23 +63,25 @@
           <button type="button" class="text-button" id="open-bookmarklet" hidden>잡코리아 화면에서 바로 판정하기</button>
         </nav>
 
+        <!-- 좁은 화면은 표 머리글이 숨겨지므로 같은 정렬 항목을 버튼 줄로 보인다. -->
         <div class="sort-bar" id="sort-bar" role="group" aria-label="정렬 기준">
           <span class="sort-label">정렬</span>
-          <button type="button" data-sort="deadline">마감일</button>
-          <button type="button" data-sort="title">공고명</button>
-          <button type="button" data-sort="company">회사</button>
-          <button type="button" data-sort="source">출처</button>
+          <button type="button" data-sort="deadline" data-label="마감일">마감일</button>
+          <button type="button" data-sort="title" data-label="공고명">공고명</button>
+          <button type="button" data-sort="experience" data-label="경력">경력</button>
+          <button type="button" data-sort="location" data-label="근무지">근무지</button>
+          <button type="button" data-sort="status" data-label="판정">판정</button>
         </div>
         <table class="jobs">
           <caption class="sr-only">공고 목록. 각 공고의 원문 표기와 해석 결과를 함께 보여줍니다.</caption>
           <thead>
             <tr>
-              <th scope="col" class="c-dday" id="th-deadline">마감</th>
-              <th scope="col" id="th-title">공고</th>
-              <th scope="col" class="c-raw">경력</th>
-              <th scope="col" class="c-raw">근무지</th>
-              <th scope="col" class="c-raw c-ddl">마감일</th>
-              <th scope="col" class="c-status">판정</th>
+              <th scope="col" class="c-dday" aria-sort="none"><button type="button" class="th-sort" data-sort="deadline" data-label="마감">마감</button></th>
+              <th scope="col" aria-sort="none"><button type="button" class="th-sort" data-sort="title" data-label="공고">공고</button></th>
+              <th scope="col" class="c-raw" aria-sort="none"><button type="button" class="th-sort" data-sort="experience" data-label="경력">경력</button></th>
+              <th scope="col" class="c-raw" aria-sort="none"><button type="button" class="th-sort" data-sort="location" data-label="근무지">근무지</button></th>
+              <th scope="col" class="c-raw c-ddl" aria-sort="none"><button type="button" class="th-sort" data-sort="deadline" data-label="마감일">마감일</button></th>
+              <th scope="col" class="c-status" aria-sort="none"><button type="button" class="th-sort" data-sort="status" data-label="판정">판정</button></th>
             </tr>
           </thead>
           <tbody id="job-list"></tbody>

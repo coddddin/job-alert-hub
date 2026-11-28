@@ -107,26 +107,35 @@ try {
   }
   log.sourceFilter = perSource;
 
-  // 2b. Sort: clicking a sort item orders the list by it, clicking again reverses it, and the choice survives a reload.
+  // 2b. Sort: 표의 열 제목을 누르면 그 열로 정렬하고, 다시 누르면 뒤집히며, 새로고침해도 유지된다.
   await page.selectOption('#filter-source', 'all');
   const titles = () => page.locator('#job-list .job-title').allTextContents();
   // 공고명 정렬은 공고명으로만 정렬한다(마감일 없는 공고도 제자리). 같은 공고명끼리의 순서는 비교하지 않아도 된다.
   const shown = await titles();
   const ordered = dir => [...shown].sort((a, b) => dir * a.localeCompare(b, 'ko'));
   const byTitle = ordered(1);
-  assert.equal(await page.locator('[data-sort="deadline"]').getAttribute('aria-pressed'), 'true');
-  await page.click('[data-sort="title"]');
+  const titleHeader = page.locator('th', { has: page.locator('[data-sort="title"]') });
+  assert.equal(await page.locator('th [data-sort="deadline"]').first().getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('#sort-bar').isVisible(), false); // 넓은 화면은 머리글로 정렬
+  await page.click('th [data-sort="title"]');
   assert.deepEqual(await titles(), byTitle);
-  assert.equal(await page.locator('#th-title').getAttribute('aria-sort'), 'ascending');
-  assert.ok((await page.textContent('[data-sort="title"]')).includes('▲'));
-  await page.click('[data-sort="title"]');
+  assert.equal(await titleHeader.getAttribute('aria-sort'), 'ascending');
+  assert.ok((await page.textContent('th [data-sort="title"]')).includes('▲'));
+  await page.click('th [data-sort="title"]');
   assert.deepEqual(await titles(), ordered(-1));
-  assert.equal(await page.locator('#th-title').getAttribute('aria-sort'), 'descending');
+  assert.equal(await titleHeader.getAttribute('aria-sort'), 'descending');
   await page.reload();
   await page.waitForSelector('#job-list tr');
   assert.deepEqual(await titles(), ordered(-1));
-  await page.click('[data-sort="deadline"]');
-  log.sort = { rows: byTitle.length, title: 'asc → desc, persisted after reload' };
+  // 좁은 화면은 머리글이 숨겨지므로 같은 항목의 버튼 줄로 정렬하고, 가로 스크롤이 생기지 않는다.
+  await page.setViewportSize({ width: 375, height: 800 });
+  assert.equal(await page.locator('#sort-bar').isVisible(), true);
+  assert.ok((await page.textContent('#sort-bar [data-sort="title"]')).includes('▼'));
+  await page.click('#sort-bar [data-sort="deadline"]');
+  assert.equal(await page.locator('#sort-bar [data-sort="deadline"]').getAttribute('aria-pressed'), 'true');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  log.sort = { rows: byTitle.length, header: 'title asc → desc, persisted after reload', mobile: 'sort bar visible, no horizontal scroll' };
 
   // 3-4. Per private source: search a real job by company, open its detail, check the original link.
   log.search = {};

@@ -3,7 +3,7 @@ import { candidatesOf, CAREERS, defaults, familiesOf, matchJob, matchesCatalogFi
 import { FAMILIES, familyLabel } from './lib/taxonomy.js';
 import { initialState, sanitizeState, storageKey } from './lib/state.js';
 import { calendarUrl, EDUCATION, PERIODS } from './lib/calendar.js';
-import { nextSort, sortJobs } from './lib/sort.js';
+import { experienceRank, nextSort, sortJobs, STATUS_RANK } from './lib/sort.js';
 import { siteLinks } from './lib/site-links.js';
 
 const data = await loadJobs({ search: location.search });
@@ -171,7 +171,8 @@ function render() {
   $('#saved-count').textContent = state.bookmarks.filter(id => jobs.some(job => job.id === id)).length;
 
   const visible = sortJobs(tab === 'all' ? browse : scoped.filter(x => x.result.status === tab), state.sort,
-    ({ job }) => ({ days: daysLeft(job), title: job.title, company: job.company, source: sourceTag(job) }));
+    ({ job, result }) => ({ days: daysLeft(job), title: job.title, experience: experienceRank(job.parsed.experience),
+      location: placeName(job), status: STATUS_RANK[result.status] }));
   renderSortBar();
   $('#job-list').innerHTML = visible.length
     ? visible.map(x => row(x.job, x.result)).join('')
@@ -183,25 +184,33 @@ function render() {
     : `샘플 기준일 ${today} · 실제 공고 아님`;
 }
 
-const SORT_LABELS = { deadline: '마감일', title: '공고명', company: '회사', source: '출처' };
+/** 근무지 정렬 값: 첫 근무지의 시·도와 시·군·구. 근무지 정보가 없으면 null(맨 뒤). */
+function placeName(job) {
+  const place = job.parsed.location?.places?.[0];
+  return place ? [place.sido, place.sigungu].filter(Boolean).join(' ') : null;
+}
+
+/** 표 머리글과 좁은 화면의 버튼 줄에 지금 정렬 기준·방향을 ▲/▼와 aria로 표시한다. */
 function renderSortBar() {
   const { key, dir } = state.sort;
+  const order = dir === 'asc' ? '오름차순' : '내림차순';
   for (const button of document.querySelectorAll('[data-sort]')) {
     const active = button.dataset.sort === key;
+    const label = button.dataset.label;
     button.setAttribute('aria-pressed', String(active));
-    button.textContent = SORT_LABELS[button.dataset.sort] + (active ? (dir === 'asc' ? ' ▲' : ' ▼') : '');
-    button.setAttribute('aria-label', `${SORT_LABELS[button.dataset.sort]}순 정렬${active ? `, 현재 ${dir === 'asc' ? '오름차순' : '내림차순'}` : ''}`);
+    button.textContent = label + (active ? (dir === 'asc' ? ' ▲' : ' ▼') : '');
+    button.setAttribute('aria-label', `${label}순 정렬${active ? `, 현재 ${order}` : ''}`);
+    button.closest('th')?.setAttribute('aria-sort', active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none');
   }
-  const order = dir === 'asc' ? 'ascending' : 'descending';
-  $('#th-deadline').setAttribute('aria-sort', key === 'deadline' ? order : 'none');
-  $('#th-title').setAttribute('aria-sort', key === 'title' ? order : 'none');
 }
-$('#sort-bar').addEventListener('click', event => {
+function onSortClick(event) {
   const button = event.target.closest('[data-sort]');
   if (!button) return;
   state.sort = nextSort(state.sort, button.dataset.sort);
   persist(); render();
-});
+}
+document.querySelector('.jobs thead').addEventListener('click', onSortClick);
+$('#sort-bar').addEventListener('click', onSortClick);
 
 /** 다른 사이트의 공고는 가져오지 않는다. 지금 필터를 그 사이트 검색 주소로 옮겨 이동만 시킨다. */
 function renderSiteLinks() {
