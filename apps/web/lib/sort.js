@@ -15,16 +15,22 @@ export function sanitizeSort(value) {
 
 const text = (a, b) => (a ?? '').localeCompare(b ?? '', 'ko');
 
+/** 마감 임박순. 마감일이 없는 공고(상시 등)는 맨 뒤. */
+function byDeadline(x, y) {
+  if ((x.days === null) !== (y.days === null)) return x.days === null ? 1 : -1;
+  return (x.days ?? 0) - (y.days ?? 0);
+}
+
 /**
- * 공고 배열을 새 배열로 정렬한다. 마감일이 없는 공고(상시 등)는 방향과 상관없이 맨 뒤에 둔다.
- * `get`은 공고에서 { days, title, company, source }를 꺼내는 함수다.
+ * 공고 배열을 새 배열로 정렬한다. `get`은 공고에서 { days, title, company, source }를 꺼내는 함수다.
+ * 마감일 정렬은 마감일 없는 공고를 방향과 상관없이 맨 뒤에 둔다. 다른 항목은 그 값으로만 정렬하고,
+ * 값이 같으면 마감 임박순으로 둔다.
  */
 export function sortJobs(items, sort, get) {
   const sign = sort.dir === 'desc' ? -1 : 1;
   return [...items].sort((a, b) => {
     const x = get(a), y = get(b);
-    if ((x.days === null) !== (y.days === null)) return x.days === null ? 1 : -1;
-    const primary = sort.key === 'deadline' ? (x.days ?? 0) - (y.days ?? 0) : text(x[sort.key], y[sort.key]);
-    return sign * primary || (x.days ?? 0) - (y.days ?? 0);
+    if (sort.key === 'deadline') return (x.days === null) !== (y.days === null) ? byDeadline(x, y) : sign * byDeadline(x, y);
+    return sign * text(x[sort.key], y[sort.key]) || byDeadline(x, y);
   });
 }

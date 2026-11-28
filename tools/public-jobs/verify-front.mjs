@@ -110,13 +110,9 @@ try {
   // 2b. Sort: clicking a sort item orders the list by it, clicking again reverses it, and the choice survives a reload.
   await page.selectOption('#filter-source', 'all');
   const titles = () => page.locator('#job-list .job-title').allTextContents();
-  // 마감일이 없는 공고(상시·확인 필요)는 방향과 상관없이 맨 뒤라서, 마감일 있는 쪽과 없는 쪽을 따로 정렬해 이어 붙인다.
-  const withDeadline = await page.locator('#job-list tr:not(.empty)').evaluateAll(trs => trs.map(tr => ({
-    title: tr.querySelector('.job-title').textContent, dated: !['상시', '?'].includes(tr.querySelector('.dday').textContent.trim()) })));
-  const ordered = dir => {
-    const part = dated => withDeadline.filter(x => x.dated === dated).map(x => x.title).sort((a, b) => dir * a.localeCompare(b, 'ko'));
-    return [...part(true), ...part(false)];
-  };
+  // 공고명 정렬은 공고명으로만 정렬한다(마감일 없는 공고도 제자리). 같은 공고명끼리의 순서는 비교하지 않아도 된다.
+  const shown = await titles();
+  const ordered = dir => [...shown].sort((a, b) => dir * a.localeCompare(b, 'ko'));
   const byTitle = ordered(1);
   assert.equal(await page.locator('[data-sort="deadline"]').getAttribute('aria-pressed'), 'true');
   await page.click('[data-sort="title"]');

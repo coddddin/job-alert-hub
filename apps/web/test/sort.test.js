@@ -18,11 +18,12 @@ test('기본 정렬은 마감 임박순이고 마감일 없는 공고는 맨 뒤
 test('마감일 내림차순에서도 마감일 없는 공고는 맨 뒤', () => {
   assert.equal(ids({ key: 'deadline', dir: 'desc' }), 'adcbe');
 });
-test('공고명·회사·출처 정렬은 오름·내림이 뒤집히고 마감일 없는 공고는 뒤', () => {
-  assert.equal(ids({ key: 'title', dir: 'asc' }), 'acdbe');
-  assert.equal(ids({ key: 'title', dir: 'desc' }), 'dcaeb');
-  assert.equal(ids({ key: 'company', dir: 'asc' }), 'dacbe');
-  assert.equal(ids({ key: 'source', dir: 'asc' }), 'dacbe');
+test('공고명·회사·출처 정렬은 그 값으로만 정렬하고, 같은 값끼리는 마감 임박순', () => {
+  assert.equal(ids({ key: 'title', dir: 'asc' }), 'bacde');
+  assert.equal(ids({ key: 'title', dir: 'desc' }), 'edcab');
+  assert.equal(ids({ key: 'company', dir: 'asc' }), 'dbace'); // A사 둘: 마감 있는 d가 상시 b보다 앞
+  assert.equal(ids({ key: 'company', dir: 'desc' }), 'ecadb');
+  assert.equal(ids({ key: 'source', dir: 'asc' }), 'dbace');
 });
 test('원본 배열을 바꾸지 않는다', () => {
   const before = items.map(x => x.id).join('');
