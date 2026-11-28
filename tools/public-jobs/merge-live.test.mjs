@@ -86,6 +86,24 @@ test('carries recent private jobs from the previous deploy; drops old, closed an
   assert.equal(carryOver(current, null).snapshot, current);
 });
 
+test('carried unclassified jobs get the model estimate; confirmed ones stay as they were', async () => {
+  const { carryOver } = await import('./merge-live.mjs');
+  const now = new Date('2026-11-17T06:00:00Z');
+  const none = { method: 'none', version: 'saramin-tags/3', evidence: [] };
+  const job = (id, title, tags, extra = {}) => ({ ...base.jobs[0], id, source: id.split(':')[0], title, tags, seenAt: '2026-11-17T01:00:00Z', kind: 'other', role: '', families: [], classification: none, ...extra });
+  const previous = { ...base, jobs: [
+    job('saramin:1', '영어회화 강사 모집', ['영어']),
+    job('saramin:2', '백엔드 개발자', ['Java'], { kind: 'development', families: ['it'], classification: { method: 'source-tag', version: 'saramin-tags/3', evidence: ['tag:Java'] } }),
+    job('jobkorea:3', '교육생 모집', [], { classification: { ...none, nonHiring: true } }),
+  ] };
+  const { snapshot } = carryOver(base, previous, { carryHours: 72, now });
+  const [tutor, backend, training] = snapshot.jobs.slice(1);
+  assert.equal(tutor.classification.method, 'model');
+  assert.deepEqual(tutor.families, ['education']);
+  assert.equal(backend.classification.method, 'source-tag');
+  assert.equal(training.classification.method, 'none');
+});
+
 test('collection plan gives the focus families their share of search slots', async () => {
   const { readPlan, schedule } = await import('./collection-plan.mjs');
   const plan = readPlan({ focus: ['it', 'bad'], focusShare: 0.7, queries: { it: ['백엔드', '프론트엔드', '데이터', 'AI', 'DevOps', '보안', '게임', '임베디드'] } });
