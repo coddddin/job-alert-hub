@@ -1,0 +1,30 @@
+{
+  "scope": "잡코리아 직무군 분류(jobkorea-jobnames+saramin-tags/3, keyword-rules) 운영 정확도 집계. 2026-11-24 운영 배포 스냅샷에서 #33 이후 수집되고 꼬리표가 있는 잡코리아 공고 116건. 튜닝 표본 40건은 제외. 개별 원문·라벨·ID는 .scrapling-local/labels 에만 둔다.",
+  "reviewMethod": "코드 작성 에이전트가 제목·회사·사이트 직무 꼬리표만 보고, 예측을 보기 전에 라벨을 적었다(blind). 직무군 경계는 분류 사전 정의를 따랐다(회계·인사=office, 법무=public, 상담·CS=sales, 부동산=etc, 하드웨어·기계·전기=research). 독립된 사람의 검수가 아니다.",
+  "labelScheme": {
+    "primary": "정답 직무군(여러 개면 묶음 공고 b: 그중 하나만 맞아도 정답)",
+    "allowed": "경계가 모호해 함께 허용한 직무군",
+    "nonHiring": "국비·교육생 모집 등 채용이 아닌 공고"
+  },
+  "pool": { "total": 116, "it": 56, "nonIt": 55, "nonHiring": 5 },
+  "nonIt": {
+    "covered": 46, "unclassified": 9, "unclassifiedWithItCandidate": 7, "wrongFamilyOnly": 0,
+    "top1Correct": 41, "anyCorrect": 46,
+    "top1PrecisionOfCovered": 0.891, "coverage": 0.836,
+    "byRank": { "1": [41, 46], "2": [16, 27], "3": [4, 18] },
+    "familyPrecisionAllRanks": [61, 91]
+  },
+  "it": { "confirmed": 43, "candidate": 9, "missed": 4, "falsePositiveOnNonIt": 0 },
+  "nonHiringCheck": { "caught": 4, "missed": 1, "falseNonHiring": 0 },
+  "errorPatterns": [
+    "2·3순위 직무군 오답 대부분은 회사 업종 꼬리표가 직무로 집계된 것(물류 회사의 인사·채용 담당이 logistics 1순위, 바이오 회사 사내변호사에 research, 반도체 생산에 construction).",
+    "1순위가 틀린 5건: 물류 업종 꼬리표가 사무직을 앞섬 2건, 카지노 딜러가 경영기획 꼬리표로 office, FA 자동화 AS가 construction·production, 공인중개사가 sales.",
+    "미분류 9건 중 7건은 IT 후보로 표시(묶음 공고 4건, IT 제목의 회계 공고, HR 인턴, 하드웨어 개발). 나머지 2건은 산업안전 기술원과 분야별 묶음 공고.",
+    "교육 판별 누락 1건: 국비 법률사무원 과정이 office·education·public으로 분류(제목의 '국비지원'이 판별에 반영되지 않음)."
+  ],
+  "proposals": [
+    "업종 꼬리표(물류, 바이오, 의약, 중식당, 쇼핑몰 등)를 직무 집계에서 빼거나 가중치를 낮춘다.",
+    "2·3순위는 1순위와 같은 수준의 근거가 있을 때만 붙인다(예: 근거 수가 1순위의 절반 이상).",
+    "제목의 '국비', '교육생', '취업교육'을 비채용 판별에 넣는다."
+  ]
+}
