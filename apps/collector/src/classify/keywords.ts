@@ -51,7 +51,9 @@ function find(items: readonly (readonly [Field, string])[], words: ReturnType<ty
   const hits = new Map<string, Hit>();
   for (const [field, value] of items) {
     for (const { keyword, re } of words) {
-      if (re.test(value)) hits.set(`${field}:${keyword}`, { field, keyword });
+      // "회로설계"/"회로 설계"처럼 공백·대소문자만 다른 표기는 같은 패턴이므로 한 번만 센다.
+      const key = `${field}:${keyword.replace(/\s+/gu, '').toLocaleLowerCase()}`;
+      if (!hits.has(key) && re.test(value)) hits.set(key, { field, keyword });
     }
   }
   return [...hits.values()];
@@ -87,6 +89,17 @@ export function developmentEvidence(title: string, signals: JobSignals | undefin
   return [...new Set(evidence(hits))];
 }
 
+function negativeHits(items: readonly (readonly [Field, string])[]): Hit[] {
+  const whole = items.map(([, value]) => value).join(' ');
+  return find(items, dictionary.negative)
+    .filter(hit => !(unless[hit.keyword] ?? []).some(word => pattern(word).test(whole)));
+}
+
+/** 규칙이 본 비개발 신호(음성 키워드). 미분류가 동률 때문인지 구분할 때 쓴다. */
+export function nonDevelopmentEvidence(title: string, signals: JobSignals | undefined): string[] {
+  return signals ? evidence(negativeHits(texts(title, signals))) : [];
+}
+
 /** 잡코리아 공고의 제목과 원문 신호로 개발 직무·역할을 정한다. 신호가 없으면 미분류. */
 export function classifyKeywords(title: string, signals: JobSignals | undefined): Classified {
   if (!signals) return UNCLASSIFIED;
@@ -101,9 +114,7 @@ export function classifyKeywords(title: string, signals: JobSignals | undefined)
   const counter = find(stated, dictionary.nonHiringCounter);
   if (nonHiring.length && !counter.length) return rule('other', '기타', nonHiring, true);
 
-  const whole = items.map(([, value]) => value).join(' ');
-  const negative = find(items, dictionary.negative)
-    .filter(hit => !(unless[hit.keyword] ?? []).some(word => pattern(word).test(whole)));
+  const negative = negativeHits(items);
   const roleHits = dictionary.roles.map(({ role, words }) => ({ role, hits: find(items, words) })).filter(r => r.hits.length);
   const positive = [...roleHits.flatMap(r => r.hits), ...find(items, dictionary.development)];
 

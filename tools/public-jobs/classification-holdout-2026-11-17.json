@@ -13,11 +13,11 @@
     "general": "잡코리아 기본 목록 joblist?menucode=search(123건)에서 시드별 무작위",
     "dev": "검색 목록에서 무작위, 이전 회차 ID 제외. 검색어: train~holdout3 개발자·백엔드·프론트엔드·소프트웨어 / holdout4 엔지니어·IT·서버·앱개발·데이터 / holdout5 웹개발·자바·파이썬·국비 / holdout6 프로그래머·교육생·인턴·SW / holdout7 프로그래머·PLC·임베디드·QA·게임 / holdout8 개발·엔지니어·하드웨어·펌웨어",
     "requests": {
-      "detailAttempted": 349,
-      "detailHttp200": 339,
+      "detailAttempted": 389,
+      "detailHttp200": 379,
       "redirectsExcluded": 10,
       "blockedOrStopped": 0,
-      "listingPages": 55,
+      "listingPages": 60,
       "structureProbes": "상세 3건·목록 2건(신호 위치 확인용, 평가 미사용)"
     }
   },
@@ -163,6 +163,44 @@
         "hardwarePostingsNotIt": "7/7"
       },
       "verdict": "IT 정밀도 기준 충족. 표본이 작고(개발 예측 10건) 경계 검색어 위주라 일반 분포 대표성은 제한적"
+    },
+    {
+      "date": "2026-11-28",
+      "dictionarySha256": "03238557ffd759fd897b5bffdbb4e0a92694a702493ecd63d7f6bd02046e676e",
+      "keywordsTsSha256": "8ae4c059d635649447a5631395d1ba2f089c5bf20ec7a02a0d653393f66d4192",
+      "change": "공백·대소문자만 다른 같은 키워드('회로설계'/'회로 설계')를 필드마다 한 번만 센다. 사전(JSON)은 그대로.",
+      "holdout": "holdout9 (seed 1111, 40건, 펌웨어·회로설계·임베디드·제어 검색어 + 기본 목록 10)",
+      "result": {
+        "keywordPath": {
+          "predictedDev": 12,
+          "tp": 9,
+          "fpNotDev": 0,
+          "fpMixed": 3,
+          "fn": 0,
+          "unsure": 2,
+          "precisionStrict": 0.75,
+          "precisionLenient": 1.0,
+          "recall": 1.0
+        },
+        "changedVersusMain": "2건(IT 아님 → 미분류), IT 예측 변화 0"
+      },
+      "verdict": "중복 계산 수정은 IT 판정을 바꾸지 않았다. 엄격 75%의 원인인 하드웨어+펌웨어 동시 모집(mixed) 3건은 main에서도 같다(수정 범위 밖). 운영 경로에서는 보조 규칙이 동률 보류 공고를 IT로 바꾸는 부작용 1건 발견 → 아래 항목에서 수정"
+    },
+    {
+      "date": "2026-11-28",
+      "change": "운영 경로 classifyJobKorea의 보조 규칙(규칙 미분류 + 사이트 키워드가 IT만 → IT)은 규칙이 비개발 신호를 본 경우 쓰지 않는다(nonDevelopmentEvidence).",
+      "measuredOn": "train1·holdout1~9 전체 379건(holdout 측정 아님. 이 변경은 IT 판정을 미분류로만 바꿀 수 있다)",
+      "result": {
+        "productionPath": {
+          "tp": 108,
+          "fp": 1,
+          "fpMixed": 4,
+          "fn": 21,
+          "precisionStrict": 0.956,
+          "recall": 0.837
+        },
+        "changedVersusMain": "5건, 모두 IT 아님(기타) → 미분류. IT 예측 변화 0"
+      }
     }
   ],
   "finalVersionOnAllSamples": {
@@ -200,6 +238,8 @@
   "generalizableAccuracy": false,
   "families": "IT·개발이면 families ['it']. 비IT 직무군 사전은 후속 단계라 비IT·채용 아님·애매한 공고는 빈 목록(화면 '분류 대기').",
   "knownIssues": [
-    "공백 선택 패턴이라 '회로설계'와 '회로 설계'처럼 같은 키워드가 두 번 세어진다(holdout8 누락 2건의 원인). 고치면 다시 holdout 측정 필요."
+    "(해결 2026-11-28) 공백 변형 중복 계산.",
+    "하드웨어+펌웨어를 함께 모집하는 공고(mixed)를 IT로 판정한다(holdout9 3건). 알림에 들어갈 수 있다.",
+    "holdout8의 펌웨어 공고 2건은 이제 IT 아님 대신 미분류다(동률). IT로 찾지는 못한다."
   ]
 }

@@ -57,6 +57,12 @@ describe('keyword rules (keyword-rules/1)', () => {
     expect(pick('IT기술팀 개발자', signals(['IT기술팀 개발자']))).toMatchObject({ kind: 'development', role: '전산·IT' });
     expect(pick('PHP웹개발자 채용', signals(['PHP웹개발자', '펌웨어'], ['PHP']))).toMatchObject({ role: '전산·IT' });
   });
+  it('counts spacing variants of one keyword once ("회로설계" / "회로 설계")', () => {
+    // 예전에는 음성 2개(회로설계·회로 설계)로 세어 펌웨어 공고가 비개발로 판정됐다. 이제 1:1 동률이라 미분류.
+    const r = classifyKeywords('인버터 펌웨어 경력', signals(['회로설계', '기계조립', '펌웨어']));
+    expect(r.classification.method).toBe('none');
+    expect(r.classification.evidence.filter(e => e.includes('회로'))).toHaveLength(1);
+  });
   it('matches English keywords on word boundaries and records evidence', () => {
     expect(pick('JavaScript 퍼블리싱', signals(['홈페이지'])).kind).toBe('other');
     const r = classifyKeywords('백엔드 개발자', signals(['서버 개발'], ['Spring']));

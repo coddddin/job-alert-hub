@@ -1,6 +1,6 @@
 import type { CollectedJob } from '../job.js';
 import type { Provider } from './provider.js';
-import { classifyKeywords, classifySaraminTags, developmentEvidence, SARAMIN_TAGS_VERSION, type Classified, type JobSignals } from '../classify/index.js';
+import { classifyKeywords, classifySaraminTags, developmentEvidence, nonDevelopmentEvidence, SARAMIN_TAGS_VERSION, type Classified, type JobSignals } from '../classify/index.js';
 
 export const publicFields = ['company', 'title', 'location', 'experience', 'deadline'] as const;
 export type PublicField = typeof publicFields[number];
@@ -88,7 +88,9 @@ function decide(title: string, raw: JobSignals | undefined): Classified {
   if (!signals || rule.classification.nonHiring) return rule;
   const byTags = classifySaraminTags(signals.jobNames, title);
   // 규칙이 한 필드뿐이라 정하지 못했지만 사이트 직무 키워드가 개발만 가리키면 개발로 본다(두 번째 근거).
-  if (rule.classification.method === 'none' && byTags.families.length === 1 && byTags.families[0] === 'it' && !BUNDLED.test(title)) {
+  // 규칙이 비개발 신호를 보고 동률로 보류한 경우(예: "HW회로설계" + 키워드 '임베디드')에는 쓰지 않는다.
+  if (rule.classification.method === 'none' && byTags.families.length === 1 && byTags.families[0] === 'it' && !BUNDLED.test(title) &&
+    !nonDevelopmentEvidence(title, signals).length) {
     return { ...byTags, classification: { ...byTags.classification, version: `jobkorea-jobnames+${SARAMIN_TAGS_VERSION}`, evidence: [...new Set([...rule.classification.evidence, ...byTags.classification.evidence.map(e => e.replace(/^tag:/u, 'job:'))])].slice(0, 5) } };
   }
   // 규칙은 개발이라는데 사이트 직무 키워드의 절반 이상이 다른 직무군이면(여러 부문 묶음 공고) 확정하지 않는다.

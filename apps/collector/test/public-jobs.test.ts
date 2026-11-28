@@ -91,6 +91,8 @@ describe('classifyJobKorea (keyword rule + site job names)', () => {
   it('maps non-IT postings by site job names, keeps at most three families, and drops the apply-method label', async () => {
     const { classifyJobKorea } = await import('../src/providers/public-jobs.js');
     expect(classifyJobKorea('그래픽 디자이너 정규직 채용', s(['홈페이지 지원', '그래픽 디자이너', '2D디자인']))).toMatchObject({ families: ['design'], classification: { method: 'source-tag' } });
+    // 규칙이 비개발 신호(회로설계)로 동률 보류한 하드웨어 공고는 사이트 키워드 '임베디드'만으로 IT가 되지 않는다.
+    expect(classifyJobKorea('IoT기기 HW회로설계', s(['HW 회로설계', 'MCU', '임베디드', '회로설계']))).toMatchObject({ kind: 'other', families: [] });
     const many = classifyJobKorea('아름다운가게 상근활동가 모집', s(['마케팅', '수배송', '생산', '교육', '서빙', '영업관리', '방송']));
     expect(many.families.length).toBeLessThanOrEqual(3);
   });
