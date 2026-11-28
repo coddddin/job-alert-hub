@@ -80,8 +80,9 @@ test('첫 방문 답(직무군·경력)으로 맞춤을 고르고, 직무를 모
   assert.equal(matchJob(unknown, base).status, 'review');
   assert.deepEqual(notificationCandidates([nurse, unknown], base).map(job => job.id), ['alio:9']);
   const guessed = { ...nurse, id: 'jobkorea:2', classification: { method: 'model', version: 'family-model/1', evidence: ['간호'], confidence: 0.93 } };
-  assert.equal(matchJob(guessed, base).status, 'match');
-  assert.deepEqual(notificationCandidates([guessed], base), []); // 모델 추정은 알림 제외
+  // 모델 추정은 확정이 아니다: 맞춤에는 확인 필요로 보이고 알림에서는 빠진다.
+  assert.deepEqual(matchJob(guessed, base), { status: 'review', reason: '의료·보건·복지 추정 · 직무 확인 필요', estimated: true });
+  assert.deepEqual(notificationCandidates([guessed], base), []);
   assert.equal(matchJob(nurse, { ...base, career: 'new' }).reason, '경력 필수');
   assert.equal(matchJob(jobs[0], { ...defaults, career: 'experienced' }).status, 'match'); // 경력자도 신입 공고를 본다
   const saved = sanitizeState({ version: 1, profile: { families: ['medical', 'bad', 'medical'], career: 'any', region: 'all' } });
@@ -95,4 +96,11 @@ test('직무를 확정 못 한 IT 후보는 IT 관심자에게 확인 필요로 
   assert.deepEqual(notificationCandidates([candidate], base).map(job => job.id), ['jobkorea:3']);
   // 다른 직무군 관심자에게는 후보가 아니므로 기존처럼 분류 대기(알림 없음).
   assert.deepEqual(notificationCandidates([candidate], { ...base, families: ['medical'] }), []);
+  // 모델이 추정을 붙여도 후보 표시는 남아 알림에서 빠지지 않는다(모델이 다른 직무군으로 추정해도).
+  const estimated = { ...candidate, families: ['it'], classification: { ...candidate.classification, method: 'model', version: 'family-model/1', confidence: 0.9 } };
+  const elsewhere = { ...estimated, id: 'jobkorea:4', families: ['office'] };
+  assert.equal(matchJob(estimated, base).candidate, true);
+  assert.equal(matchJob(elsewhere, base).candidate, true);
+  assert.deepEqual(notificationCandidates([estimated, elsewhere], base).map(job => job.id), ['jobkorea:3', 'jobkorea:4']);
+  assert.equal(matchJob(elsewhere, { ...base, families: ['medical'] }).status, 'exclude');
 });
